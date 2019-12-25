@@ -24,7 +24,7 @@ and humidity sensors that communicate over the I²C bus.
 ## Status
 
 - [ ] Measure temperature and humidity
-- [ ] Get serial number and ID
+- [ ] Get device identifier
 - [ ] Sleep / Wakeup commands
 - [ ] Soft reset and general call reset
 - [ ] Support for low power mode
