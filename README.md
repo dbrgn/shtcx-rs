@@ -1,5 +1,6 @@
 # Rust SHTCx Driver
 
+[![Build status][workflow-badge]][workflow]
 [![Crates.io Version][crates-io-badge]][crates-io]
 [![Crates.io Downloads][crates-io-download-badge]][crates-io-download]
 
@@ -49,6 +50,8 @@ be dual licensed as above, without any additional terms or conditions.
 
 
 <!-- Badges -->
+[workflow]: https://github.com/dbrgn/shtcx-rs/actions?query=workflow%3ACI
+[workflow-badge]: https://img.shields.io/github/workflow/status/dbrgn/shtcx-rs/CI/master
 [crates-io]: https://crates.io/crates/shtcx
 [crates-io-badge]: https://img.shields.io/crates/v/shtcx.svg?maxAge=3600
 [crates-io-download]: https://crates.io/crates/shtcx
