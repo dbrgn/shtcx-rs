@@ -24,12 +24,12 @@ and humidity sensors that communicate over the I²C bus.
 ## Status
 
 - [ ] Measure temperature and humidity
-- [ ] Get device identifier
+- [x] Get device identifier
 - [ ] Sleep / Wakeup commands
 - [ ] Soft reset and general call reset
 - [ ] Support for low power mode
 - [ ] Support for having I²C clock stretching enabled or disabled
-- [ ] CRC checks
+- [x] CRC checks
 - [ ] Docs
 
 ## License
