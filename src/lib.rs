@@ -199,18 +199,16 @@ mod tests {
 
     use std::io::ErrorKind;
 
-    use embedded_hal_mock::MockError;
     use embedded_hal_mock::i2c::{Mock as I2cMock, Transaction};
+    use embedded_hal_mock::MockError;
 
     const SHT_ADDR: u8 = 0x70;
 
     /// Test whether the `send_command` function propagates I²C errors.
     #[test]
     fn send_command_error() {
-        let mock = I2cMock::new(&[
-            Transaction::write(SHT_ADDR, vec![0xef, 0xc8])
-                .with_error(MockError::Io(ErrorKind::Other)),
-        ]);
+        let mock = I2cMock::new(&[Transaction::write(SHT_ADDR, vec![0xef, 0xc8])
+            .with_error(MockError::Io(ErrorKind::Other))]);
         let mut sht = ShtCx::new(mock, SHT_ADDR);
         let err = sht.send_command(Command::ReadIdRegister).unwrap_err();
         assert_eq!(err, Error::I2c(MockError::Io(ErrorKind::Other)));
