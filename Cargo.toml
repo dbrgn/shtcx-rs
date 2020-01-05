@@ -27,6 +27,7 @@ embedded-hal = "0.2"
 
 [dev-dependencies]
 embedded-hal-mock = { git = "https://github.com/dbrgn/embedded-hal-mock/", branch = "i2c-transaction-attach-error" }
+linux-embedded-hal = "0.3"
 
 [profile.release]
 lto = true
