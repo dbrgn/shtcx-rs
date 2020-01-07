@@ -9,12 +9,18 @@
 use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
 
 /// Whether temperature or humidity is returned first when doing a measurement.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum MeasurementOrder {
     TemperatureFirst,
     HumidityFirst,
 }
 use MeasurementOrder::*;
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum PowerMode {
+    NormalMode,
+    LowPower,
+}
 
 /// All possible errors in this crate
 #[derive(Debug, PartialEq, Clone)]
@@ -104,6 +110,14 @@ pub struct ShtCx<I2C> {
     address: u8,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Measurement {
+    /// Raw temperature value
+    temperature: u16,
+    /// Raw humidity value
+    humidity: u16,
+}
+
 impl<I2C, E> ShtCx<I2C>
 where
     I2C: Read<Error = E> + Write<Error = E> + WriteRead<Error = E>,
@@ -173,6 +187,23 @@ where
         let lsb = (ident & 0b00111111) as u8;
         let msb = ((ident & 0b00001000_00000000) >> 5) as u8;
         Ok(lsb | msb)
+    }
+
+    pub fn measure(&mut self, mode: PowerMode) -> Result<Measurement, Error<E>> {
+        // Request measurement 
+        self.send_command(Command::Measure {
+            low_power: false,
+            clock_stretching: false,
+            order: MeasurementOrder::TemperatureFirst,
+        })?;
+
+        // Read response
+        let mut buf = [0; 6];
+        self.read_with_crc(&mut buf)?;
+        Ok(Measurement {
+            temperature: ((buf[0] as u16) << 8) & buf[1] as u16,
+            humidity: ((buf[2] as u16) << 8) & buf[3] as u16,
+        })
     }
 }
 

@@ -12,4 +12,5 @@ fn main() {
     println!();
     println!("Device identifier: 0x{:x}", sht.device_identifier().unwrap());
     println!("Raw ID register:   0b{:b}", sht.raw_id_register().unwrap());
+    println!("Measurement:       {:?}", sht.measure().unwrap());
 }
