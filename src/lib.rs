@@ -6,15 +6,22 @@
 // TODO: Deny missing docs
 #![cfg_attr(not(test), no_std)]
 
+use embedded_hal::blocking::delay::{DelayMs, DelayUs};
 use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
 
 /// Whether temperature or humidity is returned first when doing a measurement.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum MeasurementOrder {
     TemperatureFirst,
     HumidityFirst,
 }
 use MeasurementOrder::*;
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum PowerMode {
+    NormalMode,
+    LowPower,
+}
 
 /// All possible errors in this crate
 #[derive(Debug, PartialEq, Clone)]
@@ -97,20 +104,43 @@ impl Command {
 
 /// Driver for the SHTCx
 #[derive(Debug, Default)]
-pub struct ShtCx<I2C> {
+pub struct ShtCx<I2C, D> {
     /// The concrete I²C device implementation.
     i2c: I2C,
+    /// The concrete Delay implementation.
+    delay: D,
     /// The I²C device address.
     address: u8,
 }
 
-impl<I2C, E> ShtCx<I2C>
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Measurement {
+    /// Raw temperature value
+    temperature_raw: u16,
+    /// Raw humidity value
+    humidity_raw: u16,
+}
+
+impl Measurement {
+    /// Return temperature in milli-degrees celsius.
+    pub fn get_temperature(&self) -> i32 {
+        convert_temperature(self.temperature_raw)
+    }
+
+    /// Return humidity in 1/1000 %RH.
+    pub fn get_humidity(&self) -> i32 {
+        convert_humidity(self.humidity_raw)
+    }
+}
+
+impl<I2C, D, E> ShtCx<I2C, D>
 where
     I2C: Read<Error = E> + Write<Error = E> + WriteRead<Error = E>,
+    D: DelayUs<u16> + DelayMs<u16>,
 {
     /// Create a new instance of the SGP30 driver.
-    pub fn new(i2c: I2C, address: u8) -> Self {
-        Self { i2c, address }
+    pub fn new(i2c: I2C, address: u8, delay: D) -> Self {
+        Self { i2c, address, delay }
     }
 
     /// Destroy driver instance, return I²C bus instance.
@@ -174,6 +204,35 @@ where
         let msb = ((ident & 0b00001000_00000000) >> 5) as u8;
         Ok(lsb | msb)
     }
+
+    pub fn measure(&mut self, mode: PowerMode) -> Result<Measurement, Error<E>> {
+        // Request measurement
+        self.send_command(Command::Measure {
+            low_power: match mode {
+                PowerMode::LowPower => true,
+                PowerMode::NormalMode => false,
+            },
+            clock_stretching: false,
+            order: MeasurementOrder::TemperatureFirst,
+        })?;
+
+        // Wait for measurement
+        // Max measurement duration (datasheet 3.1):
+        // - Normal mode: 12.1 ms
+        // - Low power mode: 0.8 ms
+        self.delay.delay_us(match mode {
+            PowerMode::NormalMode => 12100,
+            PowerMode::LowPower => 800,
+        });
+
+        // Read response
+        let mut buf = [0; 6];
+        self.read_with_crc(&mut buf)?;
+        Ok(Measurement {
+            temperature_raw: u16::from_be_bytes([buf[0], buf[1]]),
+            humidity_raw: u16::from_be_bytes([buf[3], buf[4]]),
+        })
+    }
 }
 
 /// Calculate the CRC8 checksum.
@@ -195,12 +254,31 @@ fn crc8(data: &[u8]) -> u8 {
     crc
 }
 
+/// Convert raw temperature measurement to milli-degrees celsius.
+///
+/// Formula (datasheet 5.11): -45 + 175 * (val / 2^16),
+/// optimized for fixed point math.
+#[inline]
+fn convert_temperature(temp_raw: u16) -> i32 {
+    ((((temp_raw as u32) * 21875) >> 13) - 45000) as i32
+}
+
+/// Convert raw humidity measurement to relative humidity.
+///
+/// Formula (datasheet 5.11): 100 * (val / 2^16),
+/// optimized for fixed point math.
+#[inline]
+fn convert_humidity(humi_raw: u16) -> i32 {
+    (((humi_raw as u32) * 12500) >> 13) as i32
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     use std::io::ErrorKind;
 
+    use embedded_hal_mock::delay::MockNoop as NoopDelay;
     use embedded_hal_mock::i2c::{Mock as I2cMock, Transaction};
     use embedded_hal_mock::MockError;
 
@@ -211,7 +289,7 @@ mod tests {
     fn send_command_error() {
         let mock = I2cMock::new(&[Transaction::write(SHT_ADDR, vec![0xef, 0xc8])
             .with_error(MockError::Io(ErrorKind::Other))]);
-        let mut sht = ShtCx::new(mock, SHT_ADDR);
+        let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
         let err = sht.send_command(Command::ReadIdRegister).unwrap_err();
         assert_eq!(err, Error::I2c(MockError::Io(ErrorKind::Other)));
         sht.destroy().done();
@@ -229,7 +307,7 @@ mod tests {
     #[test]
     fn validate_crc() {
         let mock = I2cMock::new(&[]);
-        let sht = ShtCx::new(mock, SHT_ADDR);
+        let sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
 
         // Not enough data
         sht.validate_crc(&[]).unwrap();
@@ -268,7 +346,7 @@ mod tests {
         // Valid CRC
         let expectations = [Transaction::read(SHT_ADDR, vec![0xbe, 0xef, 0x92])];
         let mock = I2cMock::new(&expectations);
-        let mut sht = ShtCx::new(mock, SHT_ADDR);
+        let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
         sht.read_with_crc(&mut buf).unwrap();
         assert_eq!(buf, [0xbe, 0xef, 0x92]);
         sht.destroy().done();
@@ -276,7 +354,7 @@ mod tests {
         // Invalid CRC
         let expectations = [Transaction::read(SHT_ADDR, vec![0xbe, 0xef, 0x00])];
         let mock = I2cMock::new(&expectations);
-        let mut sgp = ShtCx::new(mock, SHT_ADDR);
+        let mut sgp = ShtCx::new(mock, SHT_ADDR, NoopDelay);
         match sgp.read_with_crc(&mut buf) {
             Err(Error::Crc) => {}
             Err(_) => panic!("Invalid error: Must be Crc"),
@@ -297,7 +375,7 @@ mod tests {
             Transaction::read(SHT_ADDR, vec![msb, lsb, crc]),
         ];
         let mock = I2cMock::new(&expectations);
-        let mut sht = ShtCx::new(mock, SHT_ADDR);
+        let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
         let val = sht.raw_id_register().unwrap();
         assert_eq!(val, (msb as u16) << 8 | (lsb as u16));
         sht.destroy().done();
@@ -314,7 +392,7 @@ mod tests {
             Transaction::read(SHT_ADDR, vec![msb, lsb, crc]),
         ];
         let mock = I2cMock::new(&expectations);
-        let mut sht = ShtCx::new(mock, SHT_ADDR);
+        let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
         let ident = sht.device_identifier().unwrap();
         assert_eq!(ident, 0b01000111);
         sht.destroy().done();
