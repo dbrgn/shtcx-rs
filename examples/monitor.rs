@@ -12,11 +12,11 @@ use shtcx::{PowerMode, ShtCx};
 use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
-use tui::{Terminal, Frame};
 use tui::backend::{Backend, TermionBackend};
 use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::style::{Color, Style};
 use tui::widgets::{Axis, Block, Borders, Chart, Dataset, Marker, Widget};
+use tui::{Frame, Terminal};
 
 const SENSOR_REFRESH_DELAY: Duration = Duration::from_millis(50);
 const UI_REFRESH_DELAY: Duration = Duration::from_millis(25);
@@ -65,7 +65,7 @@ fn show_chart<B: Backend>(
                 .title("X Axis")
                 .title_style(Style::default().fg(Color::Red))
                 .style(Style::default().fg(Color::White))
-                .bounds([0.0, DATA_CAPACITY as f64])
+                .bounds([0.0, DATA_CAPACITY as f64]),
         )
         .y_axis(
             Axis::<&str>::default()
@@ -73,7 +73,7 @@ fn show_chart<B: Backend>(
                 .title_style(Style::default().fg(Color::Red))
                 .style(Style::default().fg(Color::White))
                 .bounds([0.0, max.0])
-                .labels(&["0", max.1])
+                .labels(&["0", max.1]),
         )
         .datasets(&[
             Dataset::default()
@@ -150,12 +150,7 @@ fn main() -> Result<(), io::Error> {
                     .margin(1)
                     .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
                     .split(f.size());
-                let (
-                    temp_normal,
-                    temp_lowpwr,
-                    humi_normal,
-                    humi_lowpwr,
-                ) = {
+                let (temp_normal, temp_lowpwr, humi_normal, humi_lowpwr) = {
                     let data = data.lock().unwrap();
                     (
                         data.temp_normal

@@ -140,7 +140,11 @@ where
 {
     /// Create a new instance of the SGP30 driver.
     pub fn new(i2c: I2C, address: u8, delay: D) -> Self {
-        Self { i2c, address, delay }
+        Self {
+            i2c,
+            address,
+            delay,
+        }
     }
 
     /// Destroy driver instance, return I²C bus instance.
