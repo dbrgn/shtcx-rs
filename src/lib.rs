@@ -204,7 +204,7 @@ where
     /// Should be 0x47 (71) for the SHTC3.
     pub fn device_identifier(&mut self) -> Result<u8, Error<E>> {
         let ident = self.raw_id_register()?;
-        let lsb = (ident & 0b00111111) as u8;
+        let lsb = (ident & 0b0011_1111) as u8;
         let msb = ((ident & 0b00001000_00000000) >> 5) as u8;
         Ok(lsb | msb)
     }
