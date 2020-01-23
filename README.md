@@ -10,10 +10,14 @@ humidity sensor series, based on the
 
 Tested with the following sensors:
 
-- SHTC3
+- [SHTC3](https://www.sensirion.com/shtc3/)
 
 Support for the SHTC1 will be added later on. Support for SHTWx should be
 doable as well, since the protocol seems to be very similar.
+
+This driver currently uses only blocking calls. Non-blocking measurements may
+be added in the future. Clock stretching is not implemented and probably won't
+be.
 
 Docs: https://docs.rs/shtcx
 
@@ -24,12 +28,11 @@ and humidity sensors that communicate over the I²C bus.
 
 ## Status
 
-- [ ] Measure temperature and humidity
+- [x] Measure temperature and humidity
 - [x] Get device identifier
 - [ ] Sleep / Wakeup commands
 - [ ] Soft reset and general call reset
-- [ ] Support for low power mode
-- [ ] Support for having I²C clock stretching enabled or disabled
+- [x] Support for low power mode
 - [x] CRC checks
 - [ ] Docs
 

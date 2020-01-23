@@ -209,6 +209,11 @@ where
         Ok(lsb | msb)
     }
 
+    /// Run a temperature/humidity measurement and return the result.
+    ///
+    /// This is a blocking function call. It will take around 12 ms for a
+    /// normal mode measurement and around 1 ms for a low power mode
+    /// measurement.
     pub fn measure(&mut self, mode: PowerMode) -> Result<Measurement, Error<E>> {
         // Request measurement
         self.send_command(Command::Measure {
@@ -400,5 +405,59 @@ mod tests {
         let ident = sht.device_identifier().unwrap();
         assert_eq!(ident, 0b01000111);
         sht.destroy().done();
+    }
+
+    #[test]
+    fn measure_normal() {
+        let expectations = [
+            // Expect a write command: Normal mode measurement, temperature
+            // first, no clock stretching.
+            Transaction::write(SHT_ADDR, vec![0x78, 0x66]),
+            // Return the measurement result (using example values from the
+            // datasheet, section 5.4 "Measuring and Reading the Signals")
+            Transaction::read(SHT_ADDR, vec![
+                  0b0110_0100, 0b1000_1011, 0b1100_0111,
+                  0b1010_0001, 0b0011_0011, 0b0001_1100,
+            ]),
+        ];
+        let mock = I2cMock::new(&expectations);
+        let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
+        let measurement = sht.measure(PowerMode::NormalMode).unwrap();
+        assert_eq!(measurement.get_temperature(), 23_730); // 23.7°C
+        assert_eq!(measurement.get_humidity(), 62_968); // 62.9 %RH
+    }
+
+    #[test]
+    fn measure_low_power() {
+        let expectations = [
+            // Expect a write command: Low power mode measurement, temperature
+            // first, no clock stretching.
+            Transaction::write(SHT_ADDR, vec![0x60, 0x9C]),
+            // Return the measurement result (using example values from the
+            // datasheet, section 5.4 "Measuring and Reading the Signals")
+            Transaction::read(SHT_ADDR, vec![
+                  0b0110_0100, 0b1000_1011, 0b1100_0111,
+                  0b1010_0001, 0b0011_0011, 0b0001_1100,
+            ]),
+        ];
+        let mock = I2cMock::new(&expectations);
+        let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
+        let measurement = sht.measure(PowerMode::LowPower).unwrap();
+        assert_eq!(measurement.get_temperature(), 23_730); // 23.7°C
+        assert_eq!(measurement.get_humidity(), 62_968); // 62.9 %RH
+    }
+
+    /// Test conversion of raw measurement results into °C and %RH.
+    #[test]
+    fn measurement_conversion() {
+        let m = Measurement {
+            temperature_raw: ((0b0110_0100 as u16) << 8) | 0b1000_1011,
+            humidity_raw: ((0b1010_0001 as u16) << 8) | 0b0011_0011,
+        };
+        assert_eq!(m.temperature_raw, 25739);
+        assert_eq!(m.humidity_raw, 41267);
+        // Datasheet setion 5.11 "Conversion of Sensor Output"
+        assert_eq!(m.get_temperature(), 23730);
+        assert_eq!(m.get_humidity(), 62968);
     }
 }
