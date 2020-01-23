@@ -415,10 +415,17 @@ mod tests {
             Transaction::write(SHT_ADDR, vec![0x78, 0x66]),
             // Return the measurement result (using example values from the
             // datasheet, section 5.4 "Measuring and Reading the Signals")
-            Transaction::read(SHT_ADDR, vec![
-                  0b0110_0100, 0b1000_1011, 0b1100_0111,
-                  0b1010_0001, 0b0011_0011, 0b0001_1100,
-            ]),
+            Transaction::read(
+                SHT_ADDR,
+                vec![
+                    0b0110_0100,
+                    0b1000_1011,
+                    0b1100_0111,
+                    0b1010_0001,
+                    0b0011_0011,
+                    0b0001_1100,
+                ],
+            ),
         ];
         let mock = I2cMock::new(&expectations);
         let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
@@ -435,10 +442,17 @@ mod tests {
             Transaction::write(SHT_ADDR, vec![0x60, 0x9C]),
             // Return the measurement result (using example values from the
             // datasheet, section 5.4 "Measuring and Reading the Signals")
-            Transaction::read(SHT_ADDR, vec![
-                  0b0110_0100, 0b1000_1011, 0b1100_0111,
-                  0b1010_0001, 0b0011_0011, 0b0001_1100,
-            ]),
+            Transaction::read(
+                SHT_ADDR,
+                vec![
+                    0b0110_0100,
+                    0b1000_1011,
+                    0b1100_0111,
+                    0b1010_0001,
+                    0b0011_0011,
+                    0b0001_1100,
+                ],
+            ),
         ];
         let mock = I2cMock::new(&expectations);
         let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
