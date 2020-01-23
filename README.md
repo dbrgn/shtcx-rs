@@ -33,7 +33,17 @@ and humidity sensors that communicate over the I²C bus.
 - [x] CRC checks
 - [ ] Docs
 
+## Examples
+
+There are two examples in the `examples` directory: The `linux` example queries
+the sensor a few times using `linux-embedded-hal`, while the `monitor` example
+implements a terminal based real-time graphical temperature/humidity monitoring
+tool.
+
+![gif](monitor.gif)
+
 ## License
+
 
 Licensed under either of
 
