@@ -23,6 +23,8 @@ jobs:
           args: --all-features
       - name: Run tests through tarpaulin
         uses: actions-rs/tarpaulin@v0.1
+        with:
+          args: --ignore-tests
       - name: Upload coverage to codecov.io
         uses: codecov/codecov-action@v1
         with:
