@@ -88,23 +88,53 @@ pub struct ShtCx<I2C, D> {
     address: u8,
 }
 
+/// A temperature measurement.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Temperature(i32);
+
+/// A humidity measurement.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Humidity(i32);
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Measurement {
-    /// Raw temperature value
-    temperature_raw: u16,
-    /// Raw humidity value
-    humidity_raw: u16,
+    /// The measured temperature.
+    pub temperature: Temperature,
+    /// The measured humidity.
+    pub humidity: Humidity,
 }
 
-impl Measurement {
-    /// Return temperature in milli-degrees celsius.
-    pub fn get_temperature(&self) -> i32 {
-        convert_temperature(self.temperature_raw)
+impl Temperature {
+    /// Create a new `Temperature` from a raw measurement result.
+    fn from_raw(raw: u16) -> Self {
+        Self(convert_temperature(raw))
     }
 
-    /// Return humidity in 1/1000 %RH.
-    pub fn get_humidity(&self) -> i32 {
-        convert_humidity(self.humidity_raw)
+    /// Return temperature in milli-degrees celsius.
+    pub fn as_millidegrees_celsius(&self) -> i32 {
+        self.0
+    }
+
+    /// Return temperature in degrees celsius.
+    pub fn as_degrees_celsius(&self) -> f32 {
+        self.0 as f32 / 1000.0
+    }
+}
+
+impl Humidity {
+    /// Create a new `Humidity` from a raw measurement result.
+    fn from_raw(raw: u16) -> Self {
+        Self(convert_humidity(raw))
+    }
+
+    /// Return relative humidity in 1/1000 %RH.
+    pub fn as_millipercent(&self) -> i32 {
+        self.0
+    }
+
+    /// Return relative humidity in %RH.
+    pub fn as_percent(&self) -> f32 {
+        self.0 as f32 / 1000.0
     }
 }
 
@@ -184,19 +214,23 @@ where
         Ok(lsb | msb)
     }
 
-    /// Run a temperature/humidity measurement and return the result.
+    /// Do a partial measurement (depending on the order) and write it into the
+    /// provided buffer.
     ///
-    /// This is a blocking function call. It will take around 12 ms for a
-    /// normal mode measurement and around 1 ms for a low power mode
-    /// measurement.
-    pub fn measure(&mut self, mode: PowerMode) -> Result<Measurement, Error<E>> {
+    /// If you just need one of the two measurements, provide a 3-byte buffer.
+    fn measure_partial(
+        &mut self,
+        mode: PowerMode,
+        order: MeasurementOrder,
+        buf: &mut [u8],
+    ) -> Result<(), Error<E>> {
         // Request measurement
         self.send_command(Command::Measure {
             low_power: match mode {
                 PowerMode::LowPower => true,
                 PowerMode::NormalMode => false,
             },
-            order: MeasurementOrder::TemperatureFirst,
+            order,
         })?;
 
         // Wait for measurement
@@ -209,12 +243,50 @@ where
         });
 
         // Read response
+        self.read_with_crc(buf)?;
+        Ok(())
+    }
+
+    /// Run a temperature/humidity measurement and return the combined result.
+    ///
+    /// This is a blocking function call. It will take around 12 ms for a
+    /// normal mode measurement and around 1 ms for a low power mode
+    /// measurement.
+    pub fn measure(&mut self, mode: PowerMode) -> Result<Measurement, Error<E>> {
         let mut buf = [0; 6];
-        self.read_with_crc(&mut buf)?;
+        self.measure_partial(mode, MeasurementOrder::TemperatureFirst, &mut buf)?;
         Ok(Measurement {
-            temperature_raw: u16::from_be_bytes([buf[0], buf[1]]),
-            humidity_raw: u16::from_be_bytes([buf[3], buf[4]]),
+            temperature: Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])),
+            humidity: Humidity::from_raw(u16::from_be_bytes([buf[3], buf[4]])),
         })
+    }
+
+    /// Run a temperature measurement and return the result.
+    ///
+    /// This is a blocking function call. It will take around 12 ms for a
+    /// normal mode measurement and around 1 ms for a low power mode
+    /// measurement.
+    ///
+    /// Internally, it will request a measurement in "temperature first" mode
+    /// and only read the first half of the measurement response.
+    pub fn measure_temperature(&mut self, mode: PowerMode) -> Result<Temperature, Error<E>> {
+        let mut buf = [0; 3];
+        self.measure_partial(mode, MeasurementOrder::TemperatureFirst, &mut buf)?;
+        Ok(Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
+    }
+
+    /// Run a humidity measurement and return the result.
+    ///
+    /// This is a blocking function call. It will take around 12 ms for a
+    /// normal mode measurement and around 1 ms for a low power mode
+    /// measurement.
+    ///
+    /// Internally, it will request a measurement in "humidity first" mode
+    /// and only read the first half of the measurement response.
+    pub fn measure_humidity(&mut self, mode: PowerMode) -> Result<Humidity, Error<E>> {
+        let mut buf = [0; 3];
+        self.measure_partial(mode, MeasurementOrder::HumidityFirst, &mut buf)?;
+        Ok(Humidity::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
     }
 }
 
@@ -405,8 +477,8 @@ mod tests {
         let mock = I2cMock::new(&expectations);
         let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
         let measurement = sht.measure(PowerMode::NormalMode).unwrap();
-        assert_eq!(measurement.get_temperature(), 23_730); // 23.7°C
-        assert_eq!(measurement.get_humidity(), 62_968); // 62.9 %RH
+        assert_eq!(measurement.temperature.as_millidegrees_celsius(), 23_730); // 23.7°C
+        assert_eq!(measurement.humidity.as_millipercent(), 62_968); // 62.9 %RH
         sht.destroy().done();
     }
 
@@ -433,8 +505,42 @@ mod tests {
         let mock = I2cMock::new(&expectations);
         let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
         let measurement = sht.measure(PowerMode::LowPower).unwrap();
-        assert_eq!(measurement.get_temperature(), 23_730); // 23.7°C
-        assert_eq!(measurement.get_humidity(), 62_968); // 62.9 %RH
+        assert_eq!(measurement.temperature.as_millidegrees_celsius(), 23_730); // 23.7°C
+        assert_eq!(measurement.humidity.as_millipercent(), 62_968); // 62.9 %RH
+        sht.destroy().done();
+    }
+
+    #[test]
+    fn measure_temperature_only() {
+        let expectations = [
+            // Expect a write command: Normal mode measurement, temperature
+            // first, no clock stretching.
+            Transaction::write(SHT_ADDR, vec![0x78, 0x66]),
+            // Return the measurement result (using example values from the
+            // datasheet, section 5.4 "Measuring and Reading the Signals")
+            Transaction::read(SHT_ADDR, vec![0b0110_0100, 0b1000_1011, 0b1100_0111]),
+        ];
+        let mock = I2cMock::new(&expectations);
+        let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
+        let temperature = sht.measure_temperature(PowerMode::NormalMode).unwrap();
+        assert_eq!(temperature.as_millidegrees_celsius(), 23_730); // 23.7°C
+        sht.destroy().done();
+    }
+
+    #[test]
+    fn measure_humidity_only() {
+        let expectations = [
+            // Expect a write command: Normal mode measurement, humidity
+            // first, no clock stretching.
+            Transaction::write(SHT_ADDR, vec![0x58, 0xE0]),
+            // Return the measurement result (using example values from the
+            // datasheet, section 5.4 "Measuring and Reading the Signals")
+            Transaction::read(SHT_ADDR, vec![0b1010_0001, 0b0011_0011, 0b0001_1100]),
+        ];
+        let mock = I2cMock::new(&expectations);
+        let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
+        let humidity = sht.measure_humidity(PowerMode::NormalMode).unwrap();
+        assert_eq!(humidity.as_millipercent(), 62_968); // 62.9 %RH
         sht.destroy().done();
     }
 
@@ -453,14 +559,10 @@ mod tests {
     /// Test conversion of raw measurement results into °C and %RH.
     #[test]
     fn measurement_conversion() {
-        let m = Measurement {
-            temperature_raw: ((0b0110_0100 as u16) << 8) | 0b1000_1011,
-            humidity_raw: ((0b1010_0001 as u16) << 8) | 0b0011_0011,
-        };
-        assert_eq!(m.temperature_raw, 25739);
-        assert_eq!(m.humidity_raw, 41267);
         // Datasheet setion 5.11 "Conversion of Sensor Output"
-        assert_eq!(m.get_temperature(), 23730);
-        assert_eq!(m.get_humidity(), 62968);
+        let temperature = convert_temperature(((0b0110_0100 as u16) << 8) | 0b1000_1011);
+        let humidity = convert_humidity(((0b1010_0001 as u16) << 8) | 0b0011_0011);
+        assert_eq!(temperature, 23730);
+        assert_eq!(humidity, 62968);
     }
 }

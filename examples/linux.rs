@@ -21,8 +21,8 @@ fn main() {
         let measurement = sht.measure(PowerMode::NormalMode).unwrap();
         println!(
             "- {:.2}°C | {:.2} %RH",
-            measurement.get_temperature() as f32 / 1000.0,
-            measurement.get_humidity() as f32 / 1000.0,
+            measurement.temperature.as_degrees_celsius(),
+            measurement.humidity.as_percent(),
         );
     }
 
@@ -31,8 +31,8 @@ fn main() {
         let measurement = sht.measure(PowerMode::LowPower).unwrap();
         println!(
             "- {:.2}°C | {:.2} %RH",
-            measurement.get_temperature() as f32 / 1000.0,
-            measurement.get_humidity() as f32 / 1000.0,
+            measurement.temperature.as_degrees_celsius(),
+            measurement.humidity.as_percent(),
         );
     }
 }
