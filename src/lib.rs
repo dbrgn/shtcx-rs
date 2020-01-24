@@ -302,6 +302,23 @@ where
         self.measure_partial(mode, MeasurementOrder::HumidityFirst, &mut buf)?;
         Ok(Humidity::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
     }
+
+    /// Set sensor to sleep mode.
+    ///
+    /// When in sleep mode, the sensor consumes around 0.3-0.6 µA. It requires
+    /// a dedicated [`wakeup`](#method.wakeup) command to enable further I2C
+    /// communication.
+    pub fn sleep(&mut self) -> Result<(), Error<E>> {
+        self.send_command(Command::Sleep)
+    }
+
+    /// Wake up sensor from [sleep mode](#method.sleep).
+    pub fn wakeup(&mut self) -> Result<(), Error<E>> {
+        self.send_command(Command::WakeUp)?;
+        // Table 5: 180-240 µs
+        self.delay.delay_us(240);
+        Ok(())
+    }
 }
 
 /// Calculate the CRC8 checksum.
@@ -578,5 +595,25 @@ mod tests {
         let humidity = convert_humidity(((0b1010_0001 as u16) << 8) | 0b0011_0011);
         assert_eq!(temperature, 23730);
         assert_eq!(humidity, 62968);
+    }
+
+    /// Test the `sleep` function.
+    #[test]
+    fn sleep() {
+        let expectations = [Transaction::write(SHT_ADDR, vec![0xB0, 0x98])];
+        let mock = I2cMock::new(&expectations);
+        let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
+        sht.sleep().unwrap();
+        sht.destroy().done();
+    }
+
+    /// Test the `wakeup` function.
+    #[test]
+    fn wakeup() {
+        let expectations = [Transaction::write(SHT_ADDR, vec![0x35, 0x17])];
+        let mock = I2cMock::new(&expectations);
+        let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
+        sht.wakeup().unwrap();
+        sht.destroy().done();
     }
 }
