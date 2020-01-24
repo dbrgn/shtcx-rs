@@ -31,7 +31,7 @@ and humidity sensors that communicate over the I²C bus.
 
 - [x] Measure temperature and humidity
 - [x] Get device identifier
-- [ ] Sleep / Wakeup commands
+- [x] Sleep / Wakeup commands
 - [ ] Soft reset and general call reset
 - [x] Support for low power mode
 - [x] CRC checks
