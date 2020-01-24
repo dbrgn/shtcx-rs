@@ -2,8 +2,7 @@
 //! humidity sensor series, based on the
 //! [`embedded-hal`](https://github.com/rust-embedded/embedded-hal) traits.
 
-#![deny(unsafe_code)]
-// TODO: Deny missing docs
+#![deny(unsafe_code, missing_docs)]
 #![cfg_attr(not(test), no_std)]
 
 use embedded_hal::blocking::delay::{DelayMs, DelayUs};
@@ -17,9 +16,23 @@ enum MeasurementOrder {
 }
 use MeasurementOrder::*;
 
+/// Measurement power mode: Normal mode or low power mode.
+///
+/// The SHTC3 provides a low power measurement mode. Using the low power mode
+/// significantly shortens the measurement duration and thus minimizes the
+/// energy consumption per measurement. The benefit of ultra-low power
+/// consumption comes at the cost of reduced repeatability of the sensor
+/// signals: while the impact on the relative humidity signal is negligible and
+/// does not affect accuracy, it has an effect on temperature accuracy.
+///
+/// More details can be found in the "Low Power Measurement Mode" application
+/// note by Sensirion.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum PowerMode {
+    /// Normal measurement.
     NormalMode,
+    /// Low power measurement: Less energy consumption, but repeatability and
+    /// accuracy of measurements are negativeyl impacted.
     LowPower,
 }
 
@@ -77,7 +90,7 @@ impl Command {
     }
 }
 
-/// Driver for the SHTCx
+/// Driver for the SHTCx sensor.
 #[derive(Debug, Default)]
 pub struct ShtCx<I2C, D> {
     /// The concrete I²C device implementation.
@@ -96,6 +109,7 @@ pub struct Temperature(i32);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Humidity(i32);
 
+/// A combined temperature / humidity measurement.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Measurement {
     /// The measured temperature.
