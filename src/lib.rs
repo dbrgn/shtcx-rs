@@ -42,7 +42,6 @@ enum Command {
     /// Measurement commands.
     Measure {
         low_power: bool,
-        clock_stretching: bool,
         order: MeasurementOrder,
     },
     /// Software reset.
@@ -58,42 +57,18 @@ impl Command {
             Command::WakeUp => [0x35, 0x17],
             Command::Measure {
                 low_power: false,
-                clock_stretching: true,
-                order: TemperatureFirst,
-            } => [0x7C, 0xA2],
-            Command::Measure {
-                low_power: false,
-                clock_stretching: true,
-                order: HumidityFirst,
-            } => [0x5C, 0x24],
-            Command::Measure {
-                low_power: false,
-                clock_stretching: false,
                 order: TemperatureFirst,
             } => [0x78, 0x66],
             Command::Measure {
                 low_power: false,
-                clock_stretching: false,
                 order: HumidityFirst,
             } => [0x58, 0xE0],
             Command::Measure {
                 low_power: true,
-                clock_stretching: true,
-                order: TemperatureFirst,
-            } => [0x64, 0x58],
-            Command::Measure {
-                low_power: true,
-                clock_stretching: true,
-                order: HumidityFirst,
-            } => [0x44, 0xDE],
-            Command::Measure {
-                low_power: true,
-                clock_stretching: false,
                 order: TemperatureFirst,
             } => [0x60, 0x9C],
             Command::Measure {
                 low_power: true,
-                clock_stretching: false,
                 order: HumidityFirst,
             } => [0x40, 0x1A],
             Command::ReadIdRegister => [0xEF, 0xC8],
@@ -221,7 +196,6 @@ where
                 PowerMode::LowPower => true,
                 PowerMode::NormalMode => false,
             },
-            clock_stretching: false,
             order: MeasurementOrder::TemperatureFirst,
         })?;
 
