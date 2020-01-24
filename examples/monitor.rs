@@ -130,10 +130,14 @@ fn main() -> Result<(), io::Error> {
 
             // Update data buffer
             let mut data = measurement_data.lock().unwrap();
-            data.temp_normal.push_front(normal.get_temperature());
-            data.temp_lowpwr.push_front(lowpwr.get_temperature());
-            data.humi_normal.push_front(normal.get_humidity());
-            data.humi_lowpwr.push_front(lowpwr.get_humidity());
+            data.temp_normal
+                .push_front(normal.temperature.as_millidegrees_celsius());
+            data.temp_lowpwr
+                .push_front(lowpwr.temperature.as_millidegrees_celsius());
+            data.humi_normal
+                .push_front(normal.humidity.as_millipercent());
+            data.humi_lowpwr
+                .push_front(lowpwr.humidity.as_millipercent());
             data.truncate();
 
             // Sleep

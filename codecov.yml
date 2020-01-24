@@ -4,8 +4,9 @@ coverage:
   range: "80...100"
   status:
     project:
-      target: 90%
-      threshold: 3%
+      default:
+        target: 85%
+        threshold: 3%
 comment:
   layout: "diff, flags, files"
   behavior: default
