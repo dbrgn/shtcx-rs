@@ -296,8 +296,9 @@ mod tests {
     /// Test whether the `send_command` function propagates I²C errors.
     #[test]
     fn send_command_error() {
-        let mock = I2cMock::new(&[Transaction::write(SHT_ADDR, vec![0xef, 0xc8])
-            .with_error(MockError::Io(ErrorKind::Other))]);
+        let expectations = [Transaction::write(SHT_ADDR, vec![0xef, 0xc8])
+            .with_error(MockError::Io(ErrorKind::Other))];
+        let mock = I2cMock::new(&expectations);
         let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
         let err = sht.send_command(Command::ReadIdRegister).unwrap_err();
         assert_eq!(err, Error::I2c(MockError::Io(ErrorKind::Other)));
@@ -432,6 +433,7 @@ mod tests {
         let measurement = sht.measure(PowerMode::NormalMode).unwrap();
         assert_eq!(measurement.get_temperature(), 23_730); // 23.7°C
         assert_eq!(measurement.get_humidity(), 62_968); // 62.9 %RH
+        sht.destroy().done();
     }
 
     #[test]
@@ -459,6 +461,19 @@ mod tests {
         let measurement = sht.measure(PowerMode::LowPower).unwrap();
         assert_eq!(measurement.get_temperature(), 23_730); // 23.7°C
         assert_eq!(measurement.get_humidity(), 62_968); // 62.9 %RH
+        sht.destroy().done();
+    }
+
+    /// Ensure that I²C write errors are handled when measuring.
+    #[test]
+    fn measure_write_error() {
+        let expectations = [Transaction::write(SHT_ADDR, vec![0x60, 0x9C])
+            .with_error(MockError::Io(ErrorKind::Other))];
+        let mock = I2cMock::new(&expectations);
+        let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
+        let err = sht.measure(PowerMode::LowPower).unwrap_err();
+        assert_eq!(err, Error::I2c(MockError::Io(ErrorKind::Other)));
+        sht.destroy().done();
     }
 
     /// Test conversion of raw measurement results into °C and %RH.
