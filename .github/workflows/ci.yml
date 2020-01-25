@@ -54,7 +54,7 @@ jobs:
           wget https://github.com/hobofan/cargo-nono/releases/download/0.1.6/cargo-nono-0.1.6-x86_64-unknown-linux-gnu.tar.gz \
             && tar xfvz cargo-nono-0.1.6-x86_64-unknown-linux-gnu.tar.gz
       - name: Run check
-        run: ./cargo-nono check --target shtc3
+        run: ./cargo-nono check --features shtc3
 
   clippy:
     name: Clippy
@@ -69,7 +69,7 @@ jobs:
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --target shtc3
+          args: --features shtc3
 
   rustfmt:
     name: Rustfmt
