@@ -93,7 +93,7 @@ fn show_chart<B: Backend>(
 fn main() -> Result<(), io::Error> {
     // Initialize sensor driver
     let dev = I2cdev::new("/dev/i2c-1").unwrap();
-    let mut sht = shtcx::shtc3(dev, 0x70 /* SHTC3 */, Delay);
+    let mut sht = shtcx::shtc3(dev, Delay);
 
     // Initialize terminal app
     let stdout = io::stdout().into_raw_mode()?;
