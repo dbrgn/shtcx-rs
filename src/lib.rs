@@ -495,7 +495,7 @@ fn crc8(data: &[u8]) -> u8 {
 /// optimized for fixed point math.
 #[inline]
 fn convert_temperature(temp_raw: u16) -> i32 {
-    ((((temp_raw as u32) * 21875) >> 13) - 45000) as i32
+    (((temp_raw as u32) * 21875) >> 13) as i32 - 45000
 }
 
 /// Convert raw humidity measurement to relative humidity.
