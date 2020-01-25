@@ -1,12 +1,12 @@
 //! Test driver with an SHTC3 sensor on Linux.
 
 use linux_embedded_hal::{Delay, I2cdev};
-use shtcx::{PowerMode, ShtCx};
+use shtcx::{self, PowerMode};
 
 fn main() {
     let dev = I2cdev::new("/dev/i2c-1").unwrap();
     let address = 0x70; // SHTC3
-    let mut sht = ShtCx::new(dev, address, Delay);
+    let mut sht = shtcx::shtc3(dev, address, Delay);
 
     println!("Starting SHTCx tests.");
     println!("Waking up sensor.");
