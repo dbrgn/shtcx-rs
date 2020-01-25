@@ -39,15 +39,23 @@ fn main() {
         );
     }
 
-    println!("\nPutting sensor to sleep...");
+    println!("\nTesting power management:");
+    print!("-> Measure: ");
+    let temperature = sht.measure_temperature(PowerMode::NormalMode).unwrap();
+    println!("Success: {:.2} °C", temperature.as_degrees_celsius());
+    println!("-> Sleep");
     sht.sleep().unwrap();
-
-    print!("-> Measurement: ");
+    print!("-> Measure: ");
     let error = sht.measure_temperature(PowerMode::NormalMode).unwrap_err();
     println!("Error: {:?}", error);
-    println!("\nWaking up sensor...");
+    println!("-> Wakeup");
     sht.wakeup().unwrap();
-    print!("-> Measurement: ");
+    print!("-> Measure: ");
+    let temperature = sht.measure_temperature(PowerMode::NormalMode).unwrap();
+    println!("Success: {:.2} °C", temperature.as_degrees_celsius());
+    println!("-> Soft reset");
+    sht.reset().unwrap();
+    print!("-> Measure: ");
     let temperature = sht.measure_temperature(PowerMode::NormalMode).unwrap();
     println!("Success: {:.2} °C", temperature.as_degrees_celsius());
 }
