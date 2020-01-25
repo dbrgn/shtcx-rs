@@ -746,6 +746,14 @@ mod tests {
         assert_eq!(humidity, 62968);
     }
 
+    #[test]
+    fn test_convert_temperature() {
+        let test_data = [(0x0000, -45000)];
+        for td in &test_data {
+            assert_eq!(convert_temperature(td.0), td.1);
+        }
+    }
+
     /// Test the `sleep` function.
     #[test]
     fn sleep() {
