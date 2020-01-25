@@ -8,7 +8,7 @@ repository = "https://github.com/dbrgn/shtcx-rs"
 license = "MIT OR Apache-2.0"
 description = "Platform agnostic Rust driver for the Sensirion SHTCx series temperature/humidity sensors."
 readme = "README.md"
-keywords = ["shtc1", "shtc3", "sensirion", "driver", "temperature", "humidity", "embedded-hal-driver"]
+keywords = ["shtcx", "sensirion", "temperature", "humidity", "embedded-hal-driver"]
 categories = ["embedded", "hardware-support", "no-std"]
 include = [
     "**/*.rs",
