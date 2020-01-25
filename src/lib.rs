@@ -241,7 +241,7 @@ impl ShtSensor for ShtGeneric {}
 
 /// Driver for the SHTCx sensor.
 ///
-/// To create an instance of this, use a constructor function like
+/// To create an instance of this, use a factory function like
 /// [`shtc1`](fn.shtc1.html) or [`shtc3`](fn.shtc3.html) depending on your
 /// sensor.
 #[derive(Debug, Default)]
@@ -323,6 +323,31 @@ pub fn shtc3<I2C, D>(i2c: I2C, delay: D) -> ShtCx<ShtC3, I2C, D> {
         sensor: PhantomData,
         i2c,
         address: 0x70,
+        delay,
+    }
+}
+
+/// Create a new instance of the driver for the SHTW2.
+///
+/// Since the SHTW2 is also available in an alternative address version, the
+/// I²C address must be explicitly specified. For the standard SHTW2, it's 0x70.
+pub fn shtw2<I2C, D>(i2c: I2C, address: u8, delay: D) -> ShtCx<ShtC1, I2C, D> {
+    // Note: Internally, the SHTW2 is identical to the SHTC1, just with
+    // different packaging.
+    ShtCx {
+        sensor: PhantomData,
+        i2c,
+        address,
+        delay,
+    }
+}
+
+/// Create a new generic instance of the driver.
+pub fn generic<I2C, D>(i2c: I2C, address: u8, delay: D) -> ShtCx<ShtGeneric, I2C, D> {
+    ShtCx {
+        sensor: PhantomData,
+        i2c,
+        address,
         delay,
     }
 }
@@ -633,6 +658,38 @@ mod tests {
             }
             assert_eq!(buf, [0xbe, 0xef, 0x00]); // Buf was changed
             sht.destroy().done();
+        }
+    }
+
+    mod factory_functions {
+        use super::*;
+
+        #[test]
+        fn new_shtc1() {
+            let mock = I2cMock::new(&[]);
+            let sht = shtc1(mock, NoopDelay);
+            assert_eq!(sht.address, 0x70);
+        }
+
+        #[test]
+        fn new_shtc3() {
+            let mock = I2cMock::new(&[]);
+            let sht = shtc3(mock, NoopDelay);
+            assert_eq!(sht.address, 0x70);
+        }
+
+        #[test]
+        fn new_shtw2() {
+            let mock = I2cMock::new(&[]);
+            let sht = shtw2(mock, 0x42, NoopDelay);
+            assert_eq!(sht.address, 0x42);
+        }
+
+        #[test]
+        fn new_generic() {
+            let mock = I2cMock::new(&[]);
+            let sht = generic(mock, 0x23, NoopDelay);
+            assert_eq!(sht.address, 0x23);
         }
     }
 
