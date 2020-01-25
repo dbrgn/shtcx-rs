@@ -736,21 +736,29 @@ mod tests {
         sht.destroy().done();
     }
 
-    /// Test conversion of raw measurement results into °C and %RH.
-    #[test]
-    fn measurement_conversion() {
-        // Datasheet setion 5.11 "Conversion of Sensor Output"
-        let temperature = convert_temperature(((0b0110_0100 as u16) << 8) | 0b1000_1011);
-        let humidity = convert_humidity(((0b1010_0001 as u16) << 8) | 0b0011_0011);
-        assert_eq!(temperature, 23730);
-        assert_eq!(humidity, 62968);
-    }
-
+    /// Test conversion of raw measurement results into °C.
     #[test]
     fn test_convert_temperature() {
-        let test_data = [(0x0000, -45000)];
+        let test_data = [
+            (0x0000, -45000),
+            // Datasheet setion 5.11 "Conversion of Sensor Output"
+            (((0b0110_0100 as u16) << 8) | 0b1000_1011, 23730),
+        ];
         for td in &test_data {
             assert_eq!(convert_temperature(td.0), td.1);
+        }
+    }
+
+    /// Test conversion of raw measurement results into %RH.
+    #[test]
+    fn test_convert_humidity() {
+        let test_data = [
+            (0x0000, 0),
+            // Datasheet setion 5.11 "Conversion of Sensor Output"
+            (((0b1010_0001 as u16) << 8) | 0b0011_0011, 62968),
+        ];
+        for td in &test_data {
+            assert_eq!(convert_humidity(td.0), td.1);
         }
     }
 
