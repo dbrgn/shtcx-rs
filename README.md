@@ -16,16 +16,12 @@ Tested with the following sensors:
 Support for the SHTC1 will be added later on. Support for SHTWx should be
 doable as well, since the protocol seems to be very similar.
 
-This driver currently uses only blocking calls. Non-blocking measurements may
-be added in the future. Clock stretching is not implemented and probably won't
-be.
-
 Docs: https://docs.rs/shtcx
 
 ## The Device
 
 The Sensirion SHTCx series offers low-power high-precision digital temperature
-and humidity sensors that communicate over the I²C bus. 
+and humidity sensors that communicate over the I²C bus.
 
 ## Status
 
@@ -35,7 +31,7 @@ and humidity sensors that communicate over the I²C bus.
 - [x] Soft reset command
 - [x] Support for low power mode
 - [x] CRC checks
-- [ ] Docs
+- [x] Docs
 
 ## Examples
 
@@ -47,7 +43,6 @@ tool.
 ![gif](monitor.gif)
 
 ## License
-
 
 Licensed under either of
 

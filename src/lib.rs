@@ -1,6 +1,139 @@
-//! A platform agnostic Rust driver for the Sensirion SHTCx temperature /
+//! # Introduction
+//!
+//! This is a platform agnostic Rust driver for the Sensirion SHTCx temperature /
 //! humidity sensor series, based on the
 //! [`embedded-hal`](https://github.com/rust-embedded/embedded-hal) traits.
+//!
+//! ## Supported Devices
+//!
+//! Tested with the following sensors:
+//!
+//! - [SHTC3](https://www.sensirion.com/shtc3/)
+//!
+//! Support for the SHTC1 will be added later on. Support for SHTWx should be
+//! doable as well, since the protocol seems to be very similar.
+//!
+//! ## Blocking / Non-Blocking Modes
+//!
+//! This driver currently uses only blocking calls. Non-blocking measurements may
+//! be added in the future. Clock stretching is not implemented and probably won't
+//! be.
+//!
+//! ## The Device
+//!
+//! The Sensirion SHTCx series offers low-power high-precision digital
+//! temperature and humidity sensors that communicate over the I²C bus.
+//!
+//! ## Examples
+//!
+//! There are two examples in the `examples` directory: The `linux` example queries
+//! the sensor a few times using `linux-embedded-hal`, while the `monitor` example
+//! implements a terminal based real-time graphical temperature/humidity monitoring
+//! tool.
+//!
+//! ![gif](https://raw.githubusercontent.com/dbrgn/shtcx-rs/master/monitor.gif)
+//!
+//! ## Usage
+//!
+//! ### Setup
+//!
+//! Instantiate a new driver instance using a [blocking I²C HAL
+//! implementation](https://docs.rs/embedded-hal/0.2.3/embedded_hal/blocking/i2c/index.html)
+//! and a [blocking `Delay`
+//! instance](https://docs.rs/embedded-hal/0.2.3/embedded_hal/blocking/delay/index.html).
+//! For example, using `linux-embedded-hal`:
+//!
+//! ```no_run
+//! use linux_embedded_hal::{Delay, I2cdev};
+//! use shtcx::ShtCx;
+//!
+//! let dev = I2cdev::new("/dev/i2c-1").unwrap();
+//! let address = 0x70; // SHTC3
+//! let mut sht = ShtCx::new(dev, address, Delay);
+//! ```
+//!
+//! ### Device Info
+//!
+//! Then, you can query information about the sensor:
+//!
+//! ```no_run
+//! # use linux_embedded_hal::{Delay, I2cdev};
+//! # use shtcx::ShtCx;
+//! # let mut sht = ShtCx::new(I2cdev::new("/dev/i2c-1").unwrap(), 0x70 /* SHTC3 */, Delay);
+//! let device_id = sht.device_identifier().unwrap();
+//! let raw_id = sht.raw_id_register().unwrap();
+//! ```
+//!
+//! ### Measurements
+//!
+//! For measuring your environment, you can either measure just temperature,
+//! just humidity, or both:
+//!
+//! ```no_run
+//! # use linux_embedded_hal::{Delay, I2cdev};
+//! # use shtcx::ShtCx;
+//! use shtcx::PowerMode;
+//! # let mut sht = ShtCx::new(I2cdev::new("/dev/i2c-1").unwrap(), 0x70 /* SHTC3 */, Delay);
+//!
+//! let temperature = sht.measure_temperature(PowerMode::NormalMode).unwrap();
+//! let humidity = sht.measure_humidity(PowerMode::NormalMode).unwrap();
+//! let combined = sht.measure(PowerMode::NormalMode).unwrap();
+//!
+//! println!("Temperature: {} °C", temperature.as_degrees_celsius());
+//! println!("Humidity: {} %RH", humidity.as_percent());
+//! println!("Combined: {} °C / {} %RH",
+//!          combined.temperature.as_degrees_celsius(),
+//!          combined.humidity.as_percent());
+//! ```
+//!
+//! You can also use the low power mode for less power consumption, at the cost
+//! of reduced repeatability and accuracy of the sensor signals. For more
+//! information, see the ["Low Power Measurement Mode" application note][an-low-power].
+//!
+//! [an-low-power]: https://www.sensirion.com/fileadmin/user_upload/customers/sensirion/Dokumente/2_Humidity_Sensors/Sensirion_Humidity_Sensors_SHTC3_Low_Power_Measurement_Mode.pdf
+//!
+//! ```no_run
+//! # use linux_embedded_hal::{Delay, I2cdev};
+//! # use shtcx::{ShtCx, PowerMode};
+//! # let mut sht = ShtCx::new(I2cdev::new("/dev/i2c-1").unwrap(), 0x70 /* SHTC3 */, Delay);
+//! let measurement = sht.measure(PowerMode::LowPower).unwrap();
+//! ```
+//!
+//! ### Sleep Mode
+//!
+//! The sensor can be set to sleep mode when in idle state:
+//!
+//! ```no_run
+//! # use linux_embedded_hal::{Delay, I2cdev};
+//! # use shtcx::{ShtCx, PowerMode};
+//! # let mut sht = ShtCx::new(I2cdev::new("/dev/i2c-1").unwrap(), 0x70 /* SHTC3 */, Delay);
+//! sht.sleep().unwrap();
+//! ```
+//!
+//! When the sensor is in sleep mode, it requires the following wake-up command
+//! before any further communication.
+//!
+//! ```no_run
+//! # use linux_embedded_hal::{Delay, I2cdev};
+//! # use shtcx::{ShtCx, PowerMode};
+//! # let mut sht = ShtCx::new(I2cdev::new("/dev/i2c-1").unwrap(), 0x70 /* SHTC3 */, Delay);
+//! sht.wakeup().unwrap();
+//! ```
+//!
+//! ### Soft Reset
+//!
+//! The SHTC3 provides a soft reset mechanism that forces the system into a
+//! well-defined state without removing the power supply. If the system is in
+//! its idle state (i.e. if no measurement is in progress) the soft reset
+//! command can be sent. This triggers the sensor to reset all internal state
+//! machines and reload calibration data from the memory.
+//!
+//! ```no_run
+//! # use linux_embedded_hal::{Delay, I2cdev};
+//! # use shtcx::{ShtCx, PowerMode};
+//! # let mut sht = ShtCx::new(I2cdev::new("/dev/i2c-1").unwrap(), 0x70 /* SHTC3 */, Delay);
+//! sht.reset().unwrap();
+//! ```
 
 #![deny(unsafe_code, missing_docs)]
 #![cfg_attr(not(test), no_std)]
@@ -25,8 +158,10 @@ use MeasurementOrder::*;
 /// signals: while the impact on the relative humidity signal is negligible and
 /// does not affect accuracy, it has an effect on temperature accuracy.
 ///
-/// More details can be found in the "Low Power Measurement Mode" application
-/// note by Sensirion.
+/// More details can be found in the ["Low Power Measurement Mode" application
+/// note][an-low-power] by Sensirion.
+///
+/// [an-low-power]: https://www.sensirion.com/fileadmin/user_upload/customers/sensirion/Dokumente/2_Humidity_Sensors/Sensirion_Humidity_Sensors_SHTC3_Low_Power_Measurement_Mode.pdf
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum PowerMode {
     /// Normal measurement.
