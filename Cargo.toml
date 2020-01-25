@@ -21,6 +21,12 @@ include = [
 
 [features]
 default = []
+# Sensors
+shtc1 = []
+shtc3 = []
+shtw2 = []
+# Generic fallback
+generic = []
 
 [dependencies]
 embedded-hal = "0.2"
