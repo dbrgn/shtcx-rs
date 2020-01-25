@@ -775,4 +775,20 @@ mod tests {
         sht.reset().unwrap();
         sht.destroy().done();
     }
+
+    /// Test the `Temperature` wrapper.
+    #[test]
+    fn temperature() {
+        let temp = Temperature(23458);
+        assert_eq!(temp.as_degrees_celsius(), 23.458);
+        assert_eq!(temp.as_millidegrees_celsius(), 23458);
+    }
+
+    /// Test the `Humidity` wrapper.
+    #[test]
+    fn humidity() {
+        let temp = Humidity(69884);
+        assert_eq!(temp.as_percent(), 69.884);
+        assert_eq!(temp.as_millipercent(), 69884);
+    }
 }
