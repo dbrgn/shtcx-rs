@@ -136,6 +136,7 @@
 #![deny(unsafe_code, missing_docs)]
 #![cfg_attr(not(test), no_std)]
 
+mod crc;
 mod types;
 
 use core::marker::PhantomData;
@@ -143,6 +144,7 @@ use core::marker::PhantomData;
 use embedded_hal::blocking::delay::{DelayMs, DelayUs};
 use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
 
+use crc::crc8;
 pub use types::*;
 
 
@@ -480,25 +482,6 @@ where
     }
 }
 
-/// Calculate the CRC8 checksum.
-///
-/// Implementation based on the reference implementation by Sensirion.
-fn crc8(data: &[u8]) -> u8 {
-    const CRC8_POLYNOMIAL: u8 = 0x31;
-    let mut crc: u8 = 0xff;
-    for byte in data {
-        crc ^= byte;
-        for _ in 0..8 {
-            if (crc & 0x80) > 0 {
-                crc = (crc << 1) ^ CRC8_POLYNOMIAL;
-            } else {
-                crc <<= 1;
-            }
-        }
-    }
-    crc
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -524,14 +507,6 @@ mod tests {
             let err = sht.send_command(Command::ReadIdRegister).unwrap_err();
             assert_eq!(err, Error::I2c(MockError::Io(ErrorKind::Other)));
             sht.destroy().done();
-        }
-
-        /// Test the crc8 function against the test value provided in the
-        /// SHTC3 datasheet (section 5.10).
-        #[test]
-        fn crc8_test_value() {
-            assert_eq!(crc8(&[0x00]), 0xac);
-            assert_eq!(crc8(&[0xbe, 0xef]), 0x92);
         }
 
         /// Test the `validate_crc` function.
