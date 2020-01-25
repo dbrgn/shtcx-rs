@@ -319,6 +319,20 @@ where
         self.delay.delay_us(240);
         Ok(())
     }
+
+    /// Trigger a soft reset.
+    ///
+    /// The SHTC3 provides a soft reset mechanism that forces the system into a
+    /// well-defined state without removing the power supply. If the system is
+    /// in its idle state (i.e. if no measurement is in progress) the soft
+    /// reset command can be sent. This triggers the sensor to reset all
+    /// internal state machines and reload calibration data from the memory.
+    pub fn reset(&mut self) -> Result<(), Error<E>> {
+        self.send_command(Command::SoftwareReset)?;
+        // Table 5: 180-240 µs
+        self.delay.delay_us(240);
+        Ok(())
+    }
 }
 
 /// Calculate the CRC8 checksum.
@@ -614,6 +628,16 @@ mod tests {
         let mock = I2cMock::new(&expectations);
         let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
         sht.wakeup().unwrap();
+        sht.destroy().done();
+    }
+
+    /// Test the `reset` function.
+    #[test]
+    fn reset() {
+        let expectations = [Transaction::write(SHT_ADDR, vec![0x80, 0x5D])];
+        let mock = I2cMock::new(&expectations);
+        let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
+        sht.reset().unwrap();
         sht.destroy().done();
     }
 }
