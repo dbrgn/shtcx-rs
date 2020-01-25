@@ -98,30 +98,36 @@
 //! let measurement = sht.measure(PowerMode::LowPower).unwrap();
 //! ```
 //!
-//! ### Sleep Mode
+//! ### Low Power Mode
 //!
-//! The sensor can be set to sleep mode when in idle state:
+//! Some of the sensors (e.g. the SHTC3, but not the SHTC1) support a low power
+//! mode, where the sensor can be set to sleep mode when in idle state.
 //!
-//! ```no_run
-//! # use linux_embedded_hal::{Delay, I2cdev};
-//! # use shtcx::{self, PowerMode};
-//! # let mut sht = shtcx::shtc3(I2cdev::new("/dev/i2c-1").unwrap(), Delay);
-//! sht.sleep().unwrap();
+//! For this, the `LowPower` trait needs to be imported:
+//!
+//! ```
+//! use shtcx::LowPower;
 //! ```
 //!
-//! When the sensor is in sleep mode, it requires the following wake-up command
-//! before any further communication.
+//! Then you can send the sensor to sleep and wake it up again before
+//! triggering a new measurement:
 //!
 //! ```no_run
 //! # use linux_embedded_hal::{Delay, I2cdev};
-//! # use shtcx::{self, PowerMode};
+//! # use shtcx::{self, PowerMode, LowPower};
 //! # let mut sht = shtcx::shtc3(I2cdev::new("/dev/i2c-1").unwrap(), Delay);
+//! sht.sleep().unwrap();
+//! // ...
 //! sht.wakeup().unwrap();
 //! ```
 //!
+//! Invoking any command other than
+//! [`wakeup`](trait.LowPower.html#tymethod.wakeup) while the sensor is in
+//! sleep mode will result in an error.
+//!
 //! ### Soft Reset
 //!
-//! The SHTC3 provides a soft reset mechanism that forces the system into a
+//! The SHTCx provides a soft reset mechanism that forces the system into a
 //! well-defined state without removing the power supply. If the system is in
 //! its idle state (i.e. if no measurement is in progress) the soft reset
 //! command can be sent. This triggers the sensor to reset all internal state
@@ -174,7 +180,7 @@ pub enum PowerMode {
     /// Normal measurement.
     NormalMode,
     /// Low power measurement: Less energy consumption, but repeatability and
-    /// accuracy of measurements are negativeyl impacted.
+    /// accuracy of measurements are negatively impacted.
     LowPower,
 }
 
@@ -450,23 +456,6 @@ where
         Ok(Humidity::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
     }
 
-    /// Set sensor to sleep mode.
-    ///
-    /// When in sleep mode, the sensor consumes around 0.3-0.6 µA. It requires
-    /// a dedicated [`wakeup`](#method.wakeup) command to enable further I2C
-    /// communication.
-    pub fn sleep(&mut self) -> Result<(), Error<E>> {
-        self.send_command(Command::Sleep)
-    }
-
-    /// Wake up sensor from [sleep mode](#method.sleep).
-    pub fn wakeup(&mut self) -> Result<(), Error<E>> {
-        self.send_command(Command::WakeUp)?;
-        // Table 5: 180-240 µs
-        self.delay.delay_us(240);
-        Ok(())
-    }
-
     /// Trigger a soft reset.
     ///
     /// The SHTC3 provides a soft reset mechanism that forces the system into a
@@ -481,6 +470,46 @@ where
         Ok(())
     }
 }
+
+/// Low power functionality (sleep and wakeup).
+///
+/// This functionality is only present on some of the sensors (e.g. the SHTC3,
+/// but not the SHTC1).
+pub trait LowPower<E> {
+    /// Set sensor to sleep mode.
+    ///
+    /// When in sleep mode, the sensor consumes around 0.3-0.6 µA. It requires
+    /// a dedicated [`wakeup`](#method.wakeup) command to enable further I2C
+    /// communication.
+    fn sleep(&mut self) -> Result<(), Error<E>>;
+
+    /// Wake up sensor from [sleep mode](#method.sleep).
+    fn wakeup(&mut self) -> Result<(), Error<E>>;
+}
+
+macro_rules! impl_low_power {
+    ($target:ty) => {
+        impl<I2C, D, E> LowPower<E> for ShtCx<$target, I2C, D>
+        where
+            I2C: Read<Error = E> + Write<Error = E> + WriteRead<Error = E>,
+            D: DelayUs<u16> + DelayMs<u16>,
+        {
+            fn sleep(&mut self) -> Result<(), Error<E>> {
+                self.send_command(Command::Sleep)
+            }
+
+            fn wakeup(&mut self) -> Result<(), Error<E>> {
+                self.send_command(Command::WakeUp)?;
+                // Table 5: 180-240 µs
+                self.delay.delay_us(240);
+                Ok(())
+            }
+        }
+    }
+}
+
+impl_low_power!(ShtC3);
+impl_low_power!(ShtGeneric);
 
 #[cfg(test)]
 mod tests {
