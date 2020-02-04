@@ -26,10 +26,10 @@
 //!
 //! ## Examples
 //!
-//! There are two examples in the `examples` directory: The `linux` example queries
-//! the sensor a few times using `linux-embedded-hal`, while the `monitor` example
-//! implements a terminal based real-time graphical temperature/humidity monitoring
-//! tool.
+//! There are a few examples in the `examples` directory: The `linux-<target>`
+//! example queries the sensor a few times using `linux-embedded-hal`, while
+//! the `monitor-<target>` example implements a terminal based real-time
+//! graphical temperature/humidity monitoring tool.
 //!
 //! ![gif](https://raw.githubusercontent.com/dbrgn/shtcx-rs/master/monitor.gif)
 //!
@@ -41,15 +41,14 @@
 //! implementation](https://docs.rs/embedded-hal/0.2.3/embedded_hal/blocking/i2c/index.html)
 //! and a [blocking `Delay`
 //! instance](https://docs.rs/embedded-hal/0.2.3/embedded_hal/blocking/delay/index.html).
-//! For example, using `linux-embedded-hal`:
+//! For example, using `linux-embedded-hal` and an SHTC3 sensor:
 //!
 //! ```no_run
 //! use linux_embedded_hal::{Delay, I2cdev};
-//! use shtcx::ShtCx;
+//! use shtcx;
 //!
 //! let dev = I2cdev::new("/dev/i2c-1").unwrap();
-//! let address = 0x70; // SHTC3
-//! let mut sht = ShtCx::new(dev, address, Delay);
+//! let mut sht = shtcx::shtc3(dev, Delay);
 //! ```
 //!
 //! ### Device Info
@@ -58,8 +57,8 @@
 //!
 //! ```no_run
 //! # use linux_embedded_hal::{Delay, I2cdev};
-//! # use shtcx::ShtCx;
-//! # let mut sht = ShtCx::new(I2cdev::new("/dev/i2c-1").unwrap(), 0x70 /* SHTC3 */, Delay);
+//! # use shtcx;
+//! # let mut sht = shtcx::shtc3(I2cdev::new("/dev/i2c-1").unwrap(), Delay);
 //! let device_id = sht.device_identifier().unwrap();
 //! let raw_id = sht.raw_id_register().unwrap();
 //! ```
@@ -71,9 +70,9 @@
 //!
 //! ```no_run
 //! # use linux_embedded_hal::{Delay, I2cdev};
-//! # use shtcx::ShtCx;
+//! # use shtcx;
 //! use shtcx::PowerMode;
-//! # let mut sht = ShtCx::new(I2cdev::new("/dev/i2c-1").unwrap(), 0x70 /* SHTC3 */, Delay);
+//! # let mut sht = shtcx::shtc3(I2cdev::new("/dev/i2c-1").unwrap(), Delay);
 //!
 //! let temperature = sht.measure_temperature(PowerMode::NormalMode).unwrap();
 //! let humidity = sht.measure_humidity(PowerMode::NormalMode).unwrap();
@@ -94,35 +93,41 @@
 //!
 //! ```no_run
 //! # use linux_embedded_hal::{Delay, I2cdev};
-//! # use shtcx::{ShtCx, PowerMode};
-//! # let mut sht = ShtCx::new(I2cdev::new("/dev/i2c-1").unwrap(), 0x70 /* SHTC3 */, Delay);
+//! # use shtcx::{self, PowerMode};
+//! # let mut sht = shtcx::shtc3(I2cdev::new("/dev/i2c-1").unwrap(), Delay);
 //! let measurement = sht.measure(PowerMode::LowPower).unwrap();
 //! ```
 //!
-//! ### Sleep Mode
+//! ### Low Power Mode
 //!
-//! The sensor can be set to sleep mode when in idle state:
+//! Some of the sensors (e.g. the SHTC3, but not the SHTC1) support a low power
+//! mode, where the sensor can be set to sleep mode when in idle state.
 //!
-//! ```no_run
-//! # use linux_embedded_hal::{Delay, I2cdev};
-//! # use shtcx::{ShtCx, PowerMode};
-//! # let mut sht = ShtCx::new(I2cdev::new("/dev/i2c-1").unwrap(), 0x70 /* SHTC3 */, Delay);
-//! sht.sleep().unwrap();
+//! For this, the `LowPower` trait needs to be imported:
+//!
+//! ```
+//! use shtcx::LowPower;
 //! ```
 //!
-//! When the sensor is in sleep mode, it requires the following wake-up command
-//! before any further communication.
+//! Then you can send the sensor to sleep and wake it up again before
+//! triggering a new measurement:
 //!
 //! ```no_run
 //! # use linux_embedded_hal::{Delay, I2cdev};
-//! # use shtcx::{ShtCx, PowerMode};
-//! # let mut sht = ShtCx::new(I2cdev::new("/dev/i2c-1").unwrap(), 0x70 /* SHTC3 */, Delay);
+//! # use shtcx::{self, PowerMode, LowPower};
+//! # let mut sht = shtcx::shtc3(I2cdev::new("/dev/i2c-1").unwrap(), Delay);
+//! sht.sleep().unwrap();
+//! // ...
 //! sht.wakeup().unwrap();
 //! ```
 //!
+//! Invoking any command other than
+//! [`wakeup`](trait.LowPower.html#tymethod.wakeup) while the sensor is in
+//! sleep mode will result in an error.
+//!
 //! ### Soft Reset
 //!
-//! The SHTC3 provides a soft reset mechanism that forces the system into a
+//! The SHTCx provides a soft reset mechanism that forces the system into a
 //! well-defined state without removing the power supply. If the system is in
 //! its idle state (i.e. if no measurement is in progress) the soft reset
 //! command can be sent. This triggers the sensor to reset all internal state
@@ -130,16 +135,23 @@
 //!
 //! ```no_run
 //! # use linux_embedded_hal::{Delay, I2cdev};
-//! # use shtcx::{ShtCx, PowerMode};
-//! # let mut sht = ShtCx::new(I2cdev::new("/dev/i2c-1").unwrap(), 0x70 /* SHTC3 */, Delay);
+//! # use shtcx::{self, PowerMode};
+//! # let mut sht = shtcx::shtc3(I2cdev::new("/dev/i2c-1").unwrap(), Delay);
 //! sht.reset().unwrap();
 //! ```
-
 #![deny(unsafe_code, missing_docs)]
 #![cfg_attr(not(test), no_std)]
 
+mod crc;
+mod types;
+
+use core::marker::PhantomData;
+
 use embedded_hal::blocking::delay::{DelayMs, DelayUs};
 use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
+
+use crc::crc8;
+pub use types::*;
 
 /// Whether temperature or humidity is returned first when doing a measurement.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -167,7 +179,7 @@ pub enum PowerMode {
     /// Normal measurement.
     NormalMode,
     /// Low power measurement: Less energy consumption, but repeatability and
-    /// accuracy of measurements are negativeyl impacted.
+    /// accuracy of measurements are negatively impacted.
     LowPower,
 }
 
@@ -225,9 +237,46 @@ impl Command {
     }
 }
 
+/// This non-public module is used to wrap public traits used inside the crate,
+/// which should not be public to the user.
+///
+/// This helps getting around the "can't leak private trait" error message.
+mod somewhat_private_traits {
+    use super::PowerMode;
+
+    pub trait MeasurementDuration {
+        /// Return the max measurement duration (depending on the mode) in
+        /// microseconds.
+        fn max_measurement_duration(mode: PowerMode) -> u16;
+    }
+}
+use somewhat_private_traits::*;
+
+/// Type parameters for the different sensor classes.
+pub mod sensor_class {
+    /// Type parameter: Basic SHT sensor (SHTC1, SHTW2).
+    pub struct ShtBasic;
+    /// Type parameter: Low power SHT sensor (SHTC3).
+    pub struct ShtLowPower;
+    /// Type parameter: Generic driver that should work with all SHTCx sensors.
+    pub struct ShtGeneric;
+}
+
+/// Marker trait implemented for all supported sensor classes.
+pub trait ShtSensor {}
+impl ShtSensor for sensor_class::ShtBasic {}
+impl ShtSensor for sensor_class::ShtLowPower {}
+impl ShtSensor for sensor_class::ShtGeneric {}
+
 /// Driver for the SHTCx sensor.
+///
+/// To create an instance of this, use a factory function like
+/// [`shtc1`](fn.shtc1.html) or [`shtc3`](fn.shtc3.html) depending on your
+/// sensor.
 #[derive(Debug, Default)]
-pub struct ShtCx<I2C, D> {
+pub struct ShtCx<S: ShtSensor, I2C, D> {
+    /// The chosen target sensor.
+    sensor: PhantomData<S>,
     /// The concrete I²C device implementation.
     i2c: I2C,
     /// The concrete Delay implementation.
@@ -236,71 +285,116 @@ pub struct ShtCx<I2C, D> {
     address: u8,
 }
 
-/// A temperature measurement.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Temperature(i32);
-
-/// A humidity measurement.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Humidity(i32);
-
-/// A combined temperature / humidity measurement.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Measurement {
-    /// The measured temperature.
-    pub temperature: Temperature,
-    /// The measured humidity.
-    pub humidity: Humidity,
-}
-
-impl Temperature {
-    /// Create a new `Temperature` from a raw measurement result.
-    fn from_raw(raw: u16) -> Self {
-        Self(convert_temperature(raw))
-    }
-
-    /// Return temperature in milli-degrees celsius.
-    pub fn as_millidegrees_celsius(&self) -> i32 {
-        self.0
-    }
-
-    /// Return temperature in degrees celsius.
-    pub fn as_degrees_celsius(&self) -> f32 {
-        self.0 as f32 / 1000.0
+/// Create a new instance of the driver for the SHTC1.
+///
+/// See [ShtCx](struct.ShtCx.html) for detailed documentation of the available
+/// methods.
+pub fn shtc1<I2C, D>(i2c: I2C, delay: D) -> ShtCx<sensor_class::ShtBasic, I2C, D> {
+    ShtCx {
+        sensor: PhantomData,
+        i2c,
+        address: 0x70,
+        delay,
     }
 }
 
-impl Humidity {
-    /// Create a new `Humidity` from a raw measurement result.
-    fn from_raw(raw: u16) -> Self {
-        Self(convert_humidity(raw))
-    }
-
-    /// Return relative humidity in 1/1000 %RH.
-    pub fn as_millipercent(&self) -> i32 {
-        self.0
-    }
-
-    /// Return relative humidity in %RH.
-    pub fn as_percent(&self) -> f32 {
-        self.0 as f32 / 1000.0
+/// Create a new instance of the driver for the SHTC3.
+///
+/// See [ShtCx](struct.ShtCx.html) for detailed documentation of the available
+/// methods.
+pub fn shtc3<I2C, D>(i2c: I2C, delay: D) -> ShtCx<sensor_class::ShtLowPower, I2C, D> {
+    ShtCx {
+        sensor: PhantomData,
+        i2c,
+        address: 0x70,
+        delay,
     }
 }
 
-impl<I2C, D, E> ShtCx<I2C, D>
+/// Create a new instance of the driver for the SHTW2.
+///
+/// Since the SHTW2 is also available in an alternative address version, the
+/// I²C address must be explicitly specified. For the standard SHTW2, it's 0x70.
+///
+/// See [ShtCx](struct.ShtCx.html) for detailed documentation of the available
+/// methods.
+pub fn shtw2<I2C, D>(i2c: I2C, address: u8, delay: D) -> ShtCx<sensor_class::ShtBasic, I2C, D> {
+    // Note: Internally, the SHTW2 is identical to the SHTC1, just with
+    // different packaging.
+    ShtCx {
+        sensor: PhantomData,
+        i2c,
+        address,
+        delay,
+    }
+}
+
+/// Create a new generic instance of the driver.
+///
+/// See [ShtCx](struct.ShtCx.html) for detailed documentation of the available
+/// methods.
+pub fn generic<I2C, D>(i2c: I2C, address: u8, delay: D) -> ShtCx<sensor_class::ShtGeneric, I2C, D> {
+    ShtCx {
+        sensor: PhantomData,
+        i2c,
+        address,
+        delay,
+    }
+}
+
+impl MeasurementDuration for sensor_class::ShtBasic {
+    /// Return the max measurement duration in microseconds.
+    ///
+    /// Max measurement duration (SHTC1/SHTW2 datasheet 3.1): 14.4 ms.
+    fn max_measurement_duration(mode: PowerMode) -> u16 {
+        match mode {
+            PowerMode::NormalMode => 14400,
+            PowerMode::LowPower => {
+                unreachable!("Unparametrized measurements should not use low power mode")
+            }
+        }
+    }
+}
+
+impl MeasurementDuration for sensor_class::ShtLowPower {
+    /// Return the max measurement duration (depending on the mode) in
+    /// microseconds.
+    ///
+    /// Max measurement duration (SHTC3 datasheet 3.1):
+    /// - Normal mode: 12.1 ms
+    /// - Low power mode: 0.8 ms
+    fn max_measurement_duration(mode: PowerMode) -> u16 {
+        match mode {
+            PowerMode::NormalMode => 12100,
+            PowerMode::LowPower => 800,
+        }
+    }
+}
+
+impl MeasurementDuration for sensor_class::ShtGeneric {
+    /// Return the max measurement duration (depending on the mode) in
+    /// microseconds.
+    ///
+    /// Because this duration should work for all sensor models, it chooses the
+    /// max duration of all models.
+    ///
+    /// Max measurement duration:
+    /// - Normal mode: 14.4 ms (SHTC1, SHTW2)
+    /// - Low power mode: 0.8 ms (SHTC3)
+    fn max_measurement_duration(mode: PowerMode) -> u16 {
+        match mode {
+            PowerMode::NormalMode => 14400,
+            PowerMode::LowPower => 800,
+        }
+    }
+}
+
+impl<S, I2C, D, E> ShtCx<S, I2C, D>
 where
+    S: ShtSensor + MeasurementDuration,
     I2C: Read<Error = E> + Write<Error = E> + WriteRead<Error = E>,
     D: DelayUs<u16> + DelayMs<u16>,
 {
-    /// Create a new instance of the SGP30 driver.
-    pub fn new(i2c: I2C, address: u8, delay: D) -> Self {
-        Self {
-            i2c,
-            address,
-            delay,
-        }
-    }
-
     /// Destroy driver instance, return I²C bus instance.
     pub fn destroy(self) -> I2C {
         self.i2c
@@ -363,10 +457,11 @@ where
         Ok(lsb | msb)
     }
 
-    /// Do a partial measurement (depending on the order) and write it into the
-    /// provided buffer.
+    /// Do a measurement with the specified measurement order and write the
+    /// result into the provided buffer.
     ///
-    /// If you just need one of the two measurements, provide a 3-byte buffer.
+    /// If you just need one of the two measurements, provide a 3-byte buffer
+    /// instead of a 6-byte buffer.
     fn measure_partial(
         &mut self,
         mode: PowerMode,
@@ -383,75 +478,10 @@ where
         })?;
 
         // Wait for measurement
-        // Max measurement duration (datasheet 3.1):
-        // - Normal mode: 12.1 ms
-        // - Low power mode: 0.8 ms
-        self.delay.delay_us(match mode {
-            PowerMode::NormalMode => 12100,
-            PowerMode::LowPower => 800,
-        });
+        self.delay.delay_us(S::max_measurement_duration(mode));
 
         // Read response
         self.read_with_crc(buf)?;
-        Ok(())
-    }
-
-    /// Run a temperature/humidity measurement and return the combined result.
-    ///
-    /// This is a blocking function call. It will take around 12 ms for a
-    /// normal mode measurement and around 1 ms for a low power mode
-    /// measurement.
-    pub fn measure(&mut self, mode: PowerMode) -> Result<Measurement, Error<E>> {
-        let mut buf = [0; 6];
-        self.measure_partial(mode, MeasurementOrder::TemperatureFirst, &mut buf)?;
-        Ok(Measurement {
-            temperature: Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])),
-            humidity: Humidity::from_raw(u16::from_be_bytes([buf[3], buf[4]])),
-        })
-    }
-
-    /// Run a temperature measurement and return the result.
-    ///
-    /// This is a blocking function call. It will take around 12 ms for a
-    /// normal mode measurement and around 1 ms for a low power mode
-    /// measurement.
-    ///
-    /// Internally, it will request a measurement in "temperature first" mode
-    /// and only read the first half of the measurement response.
-    pub fn measure_temperature(&mut self, mode: PowerMode) -> Result<Temperature, Error<E>> {
-        let mut buf = [0; 3];
-        self.measure_partial(mode, MeasurementOrder::TemperatureFirst, &mut buf)?;
-        Ok(Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
-    }
-
-    /// Run a humidity measurement and return the result.
-    ///
-    /// This is a blocking function call. It will take around 12 ms for a
-    /// normal mode measurement and around 1 ms for a low power mode
-    /// measurement.
-    ///
-    /// Internally, it will request a measurement in "humidity first" mode
-    /// and only read the first half of the measurement response.
-    pub fn measure_humidity(&mut self, mode: PowerMode) -> Result<Humidity, Error<E>> {
-        let mut buf = [0; 3];
-        self.measure_partial(mode, MeasurementOrder::HumidityFirst, &mut buf)?;
-        Ok(Humidity::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
-    }
-
-    /// Set sensor to sleep mode.
-    ///
-    /// When in sleep mode, the sensor consumes around 0.3-0.6 µA. It requires
-    /// a dedicated [`wakeup`](#method.wakeup) command to enable further I2C
-    /// communication.
-    pub fn sleep(&mut self) -> Result<(), Error<E>> {
-        self.send_command(Command::Sleep)
-    }
-
-    /// Wake up sensor from [sleep mode](#method.sleep).
-    pub fn wakeup(&mut self) -> Result<(), Error<E>> {
-        self.send_command(Command::WakeUp)?;
-        // Table 5: 180-240 µs
-        self.delay.delay_us(240);
         Ok(())
     }
 
@@ -470,42 +500,156 @@ where
     }
 }
 
-/// Calculate the CRC8 checksum.
-///
-/// Implementation based on the reference implementation by Sensirion.
-fn crc8(data: &[u8]) -> u8 {
-    const CRC8_POLYNOMIAL: u8 = 0x31;
-    let mut crc: u8 = 0xff;
-    for byte in data {
-        crc ^= byte;
-        for _ in 0..8 {
-            if (crc & 0x80) > 0 {
-                crc = (crc << 1) ^ CRC8_POLYNOMIAL;
-            } else {
-                crc <<= 1;
+macro_rules! impl_measurement_parametrized {
+    ($target:ty) => {
+        impl<I2C, D, E> ShtCx<$target, I2C, D>
+        where
+            I2C: Read<Error = E> + Write<Error = E> + WriteRead<Error = E>,
+            D: DelayUs<u16> + DelayMs<u16>,
+        {
+            /// Run a temperature/humidity measurement and return the combined result.
+            ///
+            /// This is a blocking function call.
+            pub fn measure(&mut self, mode: PowerMode) -> Result<Measurement, Error<E>> {
+                let mut buf = [0; 6];
+                self.measure_partial(mode, MeasurementOrder::TemperatureFirst, &mut buf)?;
+                Ok(Measurement {
+                    temperature: Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])),
+                    humidity: Humidity::from_raw(u16::from_be_bytes([buf[3], buf[4]])),
+                })
+            }
+
+            /// Run a temperature measurement and return the result.
+            ///
+            /// This is a blocking function call.
+            ///
+            /// Internally, it will request a measurement in "temperature first" mode
+            /// and only read the first half of the measurement response.
+            pub fn measure_temperature(
+                &mut self,
+                mode: PowerMode,
+            ) -> Result<Temperature, Error<E>> {
+                let mut buf = [0; 3];
+                self.measure_partial(mode, MeasurementOrder::TemperatureFirst, &mut buf)?;
+                Ok(Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
+            }
+
+            /// Run a humidity measurement and return the result.
+            ///
+            /// This is a blocking function call.
+            ///
+            /// Internally, it will request a measurement in "humidity first" mode
+            /// and only read the first half of the measurement response.
+            pub fn measure_humidity(&mut self, mode: PowerMode) -> Result<Humidity, Error<E>> {
+                let mut buf = [0; 3];
+                self.measure_partial(mode, MeasurementOrder::HumidityFirst, &mut buf)?;
+                Ok(Humidity::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
             }
         }
-    }
-    crc
+    };
 }
 
-/// Convert raw temperature measurement to milli-degrees celsius.
-///
-/// Formula (datasheet 5.11): -45 + 175 * (val / 2^16),
-/// optimized for fixed point math.
-#[inline]
-fn convert_temperature(temp_raw: u16) -> i32 {
-    (((temp_raw as u32) * 21875) >> 13) as i32 - 45000
+macro_rules! impl_measurement_unparametrized {
+    ($target:ty) => {
+        impl<I2C, D, E> ShtCx<$target, I2C, D>
+        where
+            I2C: Read<Error = E> + Write<Error = E> + WriteRead<Error = E>,
+            D: DelayUs<u16> + DelayMs<u16>,
+        {
+            /// Run a temperature/humidity measurement and return the combined result.
+            ///
+            /// This is a blocking function call.
+            pub fn measure(&mut self) -> Result<Measurement, Error<E>> {
+                let mut buf = [0; 6];
+                self.measure_partial(
+                    PowerMode::NormalMode,
+                    MeasurementOrder::TemperatureFirst,
+                    &mut buf,
+                )?;
+                Ok(Measurement {
+                    temperature: Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])),
+                    humidity: Humidity::from_raw(u16::from_be_bytes([buf[3], buf[4]])),
+                })
+            }
+
+            /// Run a temperature measurement and return the result.
+            ///
+            /// This is a blocking function call.
+            ///
+            /// Internally, it will request a measurement in "temperature first" mode
+            /// and only read the first half of the measurement response.
+            pub fn measure_temperature(&mut self) -> Result<Temperature, Error<E>> {
+                let mut buf = [0; 3];
+                self.measure_partial(
+                    PowerMode::NormalMode,
+                    MeasurementOrder::TemperatureFirst,
+                    &mut buf,
+                )?;
+                Ok(Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
+            }
+
+            /// Run a humidity measurement and return the result.
+            ///
+            /// This is a blocking function call.
+            ///
+            /// Internally, it will request a measurement in "humidity first" mode
+            /// and only read the first half of the measurement response.
+            pub fn measure_humidity(&mut self) -> Result<Humidity, Error<E>> {
+                let mut buf = [0; 3];
+                self.measure_partial(
+                    PowerMode::NormalMode,
+                    MeasurementOrder::HumidityFirst,
+                    &mut buf,
+                )?;
+                Ok(Humidity::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
+            }
+        }
+    };
 }
 
-/// Convert raw humidity measurement to relative humidity.
+impl_measurement_unparametrized!(sensor_class::ShtBasic);
+impl_measurement_parametrized!(sensor_class::ShtLowPower);
+impl_measurement_parametrized!(sensor_class::ShtGeneric);
+
+/// Low power functionality (sleep and wakeup).
 ///
-/// Formula (datasheet 5.11): 100 * (val / 2^16),
-/// optimized for fixed point math.
-#[inline]
-fn convert_humidity(humi_raw: u16) -> i32 {
-    (((humi_raw as u32) * 12500) >> 13) as i32
+/// This functionality is only present on some of the sensors (e.g. the SHTC3,
+/// but not the SHTC1).
+pub trait LowPower<E> {
+    /// Set sensor to sleep mode.
+    ///
+    /// When in sleep mode, the sensor consumes around 0.3-0.6 µA. It requires
+    /// a dedicated [`wakeup`](#method.wakeup) command to enable further I2C
+    /// communication.
+    fn sleep(&mut self) -> Result<(), Error<E>>;
+
+    /// Wake up sensor from [sleep mode](#method.sleep).
+    fn wakeup(&mut self) -> Result<(), Error<E>>;
 }
+
+macro_rules! impl_low_power {
+    ($target:ty) => {
+        impl<I2C, D, E> LowPower<E> for ShtCx<$target, I2C, D>
+        where
+            I2C: Read<Error = E> + Write<Error = E> + WriteRead<Error = E>,
+            D: DelayUs<u16> + DelayMs<u16>,
+        {
+            fn sleep(&mut self) -> Result<(), Error<E>> {
+                self.send_command(Command::Sleep)
+            }
+
+            fn wakeup(&mut self) -> Result<(), Error<E>> {
+                self.send_command(Command::WakeUp)?;
+                // Table 5: 180-240 µs
+                self.delay.delay_us(240);
+                Ok(())
+            }
+        }
+    };
+}
+
+impl_low_power!(sensor_class::ShtLowPower);
+impl_low_power!(sensor_class::ShtGeneric);
 
 #[cfg(test)]
 mod tests {
@@ -519,292 +663,290 @@ mod tests {
 
     const SHT_ADDR: u8 = 0x70;
 
-    /// Test whether the `send_command` function propagates I²C errors.
-    #[test]
-    fn send_command_error() {
-        let expectations = [Transaction::write(SHT_ADDR, vec![0xef, 0xc8])
-            .with_error(MockError::Io(ErrorKind::Other))];
-        let mock = I2cMock::new(&expectations);
-        let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
-        let err = sht.send_command(Command::ReadIdRegister).unwrap_err();
-        assert_eq!(err, Error::I2c(MockError::Io(ErrorKind::Other)));
-        sht.destroy().done();
-    }
+    mod core {
+        use super::*;
 
-    /// Test the crc8 function against the test value provided in the
-    /// SHTC3 datasheet (section 5.10).
-    #[test]
-    fn crc8_test_value() {
-        assert_eq!(crc8(&[0x00]), 0xac);
-        assert_eq!(crc8(&[0xbe, 0xef]), 0x92);
-    }
-
-    /// Test the `validate_crc` function.
-    #[test]
-    fn validate_crc() {
-        let mock = I2cMock::new(&[]);
-        let sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
-
-        // Not enough data
-        sht.validate_crc(&[]).unwrap();
-        sht.validate_crc(&[0xbe]).unwrap();
-        sht.validate_crc(&[0xbe, 0xef]).unwrap();
-
-        // Valid CRC
-        sht.validate_crc(&[0xbe, 0xef, 0x92]).unwrap();
-
-        // Invalid CRC
-        match sht.validate_crc(&[0xbe, 0xef, 0x91]) {
-            Err(Error::Crc) => {}
-            Err(_) => panic!("Invalid error: Must be Crc"),
-            Ok(_) => panic!("CRC check did not fail"),
+        /// Test whether the `send_command` function propagates I²C errors.
+        #[test]
+        fn send_command_error() {
+            let expectations = [Transaction::write(SHT_ADDR, vec![0xef, 0xc8])
+                .with_error(MockError::Io(ErrorKind::Other))];
+            let mock = I2cMock::new(&expectations);
+            let mut sht = shtc1(mock, NoopDelay);
+            let err = sht.send_command(Command::ReadIdRegister).unwrap_err();
+            assert_eq!(err, Error::I2c(MockError::Io(ErrorKind::Other)));
+            sht.destroy().done();
         }
 
-        // Valid CRC (8 bytes)
-        sht.validate_crc(&[0xbe, 0xef, 0x92, 0xbe, 0xef, 0x92, 0x00, 0x00])
-            .unwrap();
+        /// Test the `validate_crc` function.
+        #[test]
+        fn validate_crc() {
+            let mock = I2cMock::new(&[]);
+            let sht = shtc3(mock, NoopDelay);
 
-        // Invalid CRC (8 bytes)
-        match sht.validate_crc(&[0xbe, 0xef, 0x92, 0xbe, 0xef, 0xff, 0x00, 0x00]) {
-            Err(Error::Crc) => {}
-            Err(_) => panic!("Invalid error: Must be Crc"),
-            Ok(_) => panic!("CRC check did not fail"),
+            // Not enough data
+            sht.validate_crc(&[]).unwrap();
+            sht.validate_crc(&[0xbe]).unwrap();
+            sht.validate_crc(&[0xbe, 0xef]).unwrap();
+
+            // Valid CRC
+            sht.validate_crc(&[0xbe, 0xef, 0x92]).unwrap();
+
+            // Invalid CRC
+            match sht.validate_crc(&[0xbe, 0xef, 0x91]) {
+                Err(Error::Crc) => {}
+                Err(_) => panic!("Invalid error: Must be Crc"),
+                Ok(_) => panic!("CRC check did not fail"),
+            }
+
+            // Valid CRC (8 bytes)
+            sht.validate_crc(&[0xbe, 0xef, 0x92, 0xbe, 0xef, 0x92, 0x00, 0x00])
+                .unwrap();
+
+            // Invalid CRC (8 bytes)
+            match sht.validate_crc(&[0xbe, 0xef, 0x92, 0xbe, 0xef, 0xff, 0x00, 0x00]) {
+                Err(Error::Crc) => {}
+                Err(_) => panic!("Invalid error: Must be Crc"),
+                Ok(_) => panic!("CRC check did not fail"),
+            }
+
+            sht.destroy().done();
         }
 
-        sht.destroy().done();
-    }
+        /// Test the `read_with_crc` function.
+        #[test]
+        fn read_with_crc() {
+            let mut buf = [0; 3];
 
-    /// Test the `read_with_crc` function.
-    #[test]
-    fn read_with_crc() {
-        let mut buf = [0; 3];
+            // Valid CRC
+            let expectations = [Transaction::read(SHT_ADDR, vec![0xbe, 0xef, 0x92])];
+            let mock = I2cMock::new(&expectations);
+            let mut sht = shtc3(mock, NoopDelay);
+            sht.read_with_crc(&mut buf).unwrap();
+            assert_eq!(buf, [0xbe, 0xef, 0x92]);
+            sht.destroy().done();
 
-        // Valid CRC
-        let expectations = [Transaction::read(SHT_ADDR, vec![0xbe, 0xef, 0x92])];
-        let mock = I2cMock::new(&expectations);
-        let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
-        sht.read_with_crc(&mut buf).unwrap();
-        assert_eq!(buf, [0xbe, 0xef, 0x92]);
-        sht.destroy().done();
-
-        // Invalid CRC
-        let expectations = [Transaction::read(SHT_ADDR, vec![0xbe, 0xef, 0x00])];
-        let mock = I2cMock::new(&expectations);
-        let mut sgp = ShtCx::new(mock, SHT_ADDR, NoopDelay);
-        match sgp.read_with_crc(&mut buf) {
-            Err(Error::Crc) => {}
-            Err(_) => panic!("Invalid error: Must be Crc"),
-            Ok(_) => panic!("CRC check did not fail"),
-        }
-        assert_eq!(buf, [0xbe, 0xef, 0x00]); // Buf was changed
-        sgp.destroy().done();
-    }
-
-    /// Test the `raw_id_register` function.
-    #[test]
-    fn raw_id_register() {
-        let msb = 0b00001000;
-        let lsb = 0b00000111;
-        let crc = crc8(&[msb, lsb]);
-        let expectations = [
-            Transaction::write(SHT_ADDR, vec![0xef, 0xc8]),
-            Transaction::read(SHT_ADDR, vec![msb, lsb, crc]),
-        ];
-        let mock = I2cMock::new(&expectations);
-        let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
-        let val = sht.raw_id_register().unwrap();
-        assert_eq!(val, (msb as u16) << 8 | (lsb as u16));
-        sht.destroy().done();
-    }
-
-    /// Test the `device_identifier` function.
-    #[test]
-    fn device_identifier() {
-        let msb = 0b00001000;
-        let lsb = 0b00000111;
-        let crc = crc8(&[msb, lsb]);
-        let expectations = [
-            Transaction::write(SHT_ADDR, vec![0xef, 0xc8]),
-            Transaction::read(SHT_ADDR, vec![msb, lsb, crc]),
-        ];
-        let mock = I2cMock::new(&expectations);
-        let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
-        let ident = sht.device_identifier().unwrap();
-        assert_eq!(ident, 0b01000111);
-        sht.destroy().done();
-    }
-
-    #[test]
-    fn measure_normal() {
-        let expectations = [
-            // Expect a write command: Normal mode measurement, temperature
-            // first, no clock stretching.
-            Transaction::write(SHT_ADDR, vec![0x78, 0x66]),
-            // Return the measurement result (using example values from the
-            // datasheet, section 5.4 "Measuring and Reading the Signals")
-            Transaction::read(
-                SHT_ADDR,
-                vec![
-                    0b0110_0100,
-                    0b1000_1011,
-                    0b1100_0111,
-                    0b1010_0001,
-                    0b0011_0011,
-                    0b0001_1100,
-                ],
-            ),
-        ];
-        let mock = I2cMock::new(&expectations);
-        let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
-        let measurement = sht.measure(PowerMode::NormalMode).unwrap();
-        assert_eq!(measurement.temperature.as_millidegrees_celsius(), 23_730); // 23.7°C
-        assert_eq!(measurement.humidity.as_millipercent(), 62_968); // 62.9 %RH
-        sht.destroy().done();
-    }
-
-    #[test]
-    fn measure_low_power() {
-        let expectations = [
-            // Expect a write command: Low power mode measurement, temperature
-            // first, no clock stretching.
-            Transaction::write(SHT_ADDR, vec![0x60, 0x9C]),
-            // Return the measurement result (using example values from the
-            // datasheet, section 5.4 "Measuring and Reading the Signals")
-            Transaction::read(
-                SHT_ADDR,
-                vec![
-                    0b0110_0100,
-                    0b1000_1011,
-                    0b1100_0111,
-                    0b1010_0001,
-                    0b0011_0011,
-                    0b0001_1100,
-                ],
-            ),
-        ];
-        let mock = I2cMock::new(&expectations);
-        let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
-        let measurement = sht.measure(PowerMode::LowPower).unwrap();
-        assert_eq!(measurement.temperature.as_millidegrees_celsius(), 23_730); // 23.7°C
-        assert_eq!(measurement.humidity.as_millipercent(), 62_968); // 62.9 %RH
-        sht.destroy().done();
-    }
-
-    #[test]
-    fn measure_temperature_only() {
-        let expectations = [
-            // Expect a write command: Normal mode measurement, temperature
-            // first, no clock stretching.
-            Transaction::write(SHT_ADDR, vec![0x78, 0x66]),
-            // Return the measurement result (using example values from the
-            // datasheet, section 5.4 "Measuring and Reading the Signals")
-            Transaction::read(SHT_ADDR, vec![0b0110_0100, 0b1000_1011, 0b1100_0111]),
-        ];
-        let mock = I2cMock::new(&expectations);
-        let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
-        let temperature = sht.measure_temperature(PowerMode::NormalMode).unwrap();
-        assert_eq!(temperature.as_millidegrees_celsius(), 23_730); // 23.7°C
-        sht.destroy().done();
-    }
-
-    #[test]
-    fn measure_humidity_only() {
-        let expectations = [
-            // Expect a write command: Normal mode measurement, humidity
-            // first, no clock stretching.
-            Transaction::write(SHT_ADDR, vec![0x58, 0xE0]),
-            // Return the measurement result (using example values from the
-            // datasheet, section 5.4 "Measuring and Reading the Signals")
-            Transaction::read(SHT_ADDR, vec![0b1010_0001, 0b0011_0011, 0b0001_1100]),
-        ];
-        let mock = I2cMock::new(&expectations);
-        let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
-        let humidity = sht.measure_humidity(PowerMode::NormalMode).unwrap();
-        assert_eq!(humidity.as_millipercent(), 62_968); // 62.9 %RH
-        sht.destroy().done();
-    }
-
-    /// Ensure that I²C write errors are handled when measuring.
-    #[test]
-    fn measure_write_error() {
-        let expectations = [Transaction::write(SHT_ADDR, vec![0x60, 0x9C])
-            .with_error(MockError::Io(ErrorKind::Other))];
-        let mock = I2cMock::new(&expectations);
-        let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
-        let err = sht.measure(PowerMode::LowPower).unwrap_err();
-        assert_eq!(err, Error::I2c(MockError::Io(ErrorKind::Other)));
-        sht.destroy().done();
-    }
-
-    /// Test conversion of raw measurement results into °C.
-    #[test]
-    fn test_convert_temperature() {
-        let test_data = [
-            (0x0000, -45000),
-            // Datasheet setion 5.11 "Conversion of Sensor Output"
-            (((0b0110_0100 as u16) << 8) | 0b1000_1011, 23730),
-        ];
-        for td in &test_data {
-            assert_eq!(convert_temperature(td.0), td.1);
+            // Invalid CRC
+            let expectations = [Transaction::read(SHT_ADDR, vec![0xbe, 0xef, 0x00])];
+            let mock = I2cMock::new(&expectations);
+            let mut sht = shtc3(mock, NoopDelay);
+            match sht.read_with_crc(&mut buf) {
+                Err(Error::Crc) => {}
+                Err(_) => panic!("Invalid error: Must be Crc"),
+                Ok(_) => panic!("CRC check did not fail"),
+            }
+            assert_eq!(buf, [0xbe, 0xef, 0x00]); // Buf was changed
+            sht.destroy().done();
         }
     }
 
-    /// Test conversion of raw measurement results into %RH.
-    #[test]
-    fn test_convert_humidity() {
-        let test_data = [
-            (0x0000, 0),
-            // Datasheet setion 5.11 "Conversion of Sensor Output"
-            (((0b1010_0001 as u16) << 8) | 0b0011_0011, 62968),
-        ];
-        for td in &test_data {
-            assert_eq!(convert_humidity(td.0), td.1);
+    mod factory_functions {
+        use super::*;
+
+        #[test]
+        fn new_shtc1() {
+            let mock = I2cMock::new(&[]);
+            let sht = shtc1(mock, NoopDelay);
+            assert_eq!(sht.address, 0x70);
+        }
+
+        #[test]
+        fn new_shtc3() {
+            let mock = I2cMock::new(&[]);
+            let sht = shtc3(mock, NoopDelay);
+            assert_eq!(sht.address, 0x70);
+        }
+
+        #[test]
+        fn new_shtw2() {
+            let mock = I2cMock::new(&[]);
+            let sht = shtw2(mock, 0x42, NoopDelay);
+            assert_eq!(sht.address, 0x42);
+        }
+
+        #[test]
+        fn new_generic() {
+            let mock = I2cMock::new(&[]);
+            let sht = generic(mock, 0x23, NoopDelay);
+            assert_eq!(sht.address, 0x23);
         }
     }
 
-    /// Test the `sleep` function.
-    #[test]
-    fn sleep() {
-        let expectations = [Transaction::write(SHT_ADDR, vec![0xB0, 0x98])];
-        let mock = I2cMock::new(&expectations);
-        let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
-        sht.sleep().unwrap();
-        sht.destroy().done();
+    mod device_info {
+        use super::*;
+
+        /// Test the `raw_id_register` function.
+        #[test]
+        fn raw_id_register() {
+            let msb = 0b00001000;
+            let lsb = 0b00000111;
+            let crc = crc8(&[msb, lsb]);
+            let expectations = [
+                Transaction::write(SHT_ADDR, vec![0xef, 0xc8]),
+                Transaction::read(SHT_ADDR, vec![msb, lsb, crc]),
+            ];
+            let mock = I2cMock::new(&expectations);
+            let mut sht = shtc3(mock, NoopDelay);
+            let val = sht.raw_id_register().unwrap();
+            assert_eq!(val, (msb as u16) << 8 | (lsb as u16));
+            sht.destroy().done();
+        }
+
+        /// Test the `device_identifier` function.
+        #[test]
+        fn device_identifier() {
+            let msb = 0b00001000;
+            let lsb = 0b00000111;
+            let crc = crc8(&[msb, lsb]);
+            let expectations = [
+                Transaction::write(SHT_ADDR, vec![0xef, 0xc8]),
+                Transaction::read(SHT_ADDR, vec![msb, lsb, crc]),
+            ];
+            let mock = I2cMock::new(&expectations);
+            let mut sht = shtc3(mock, NoopDelay);
+            let ident = sht.device_identifier().unwrap();
+            assert_eq!(ident, 0b01000111);
+            sht.destroy().done();
+        }
     }
 
-    /// Test the `wakeup` function.
-    #[test]
-    fn wakeup() {
-        let expectations = [Transaction::write(SHT_ADDR, vec![0x35, 0x17])];
-        let mock = I2cMock::new(&expectations);
-        let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
-        sht.wakeup().unwrap();
-        sht.destroy().done();
+    mod measurements {
+        use super::*;
+
+        #[test]
+        fn measure_normal() {
+            let expectations = [
+                // Expect a write command: Normal mode measurement, temperature
+                // first, no clock stretching.
+                Transaction::write(SHT_ADDR, vec![0x78, 0x66]),
+                // Return the measurement result (using example values from the
+                // datasheet, section 5.4 "Measuring and Reading the Signals")
+                Transaction::read(
+                    SHT_ADDR,
+                    vec![
+                        0b0110_0100,
+                        0b1000_1011,
+                        0b1100_0111,
+                        0b1010_0001,
+                        0b0011_0011,
+                        0b0001_1100,
+                    ],
+                ),
+            ];
+            let mock = I2cMock::new(&expectations);
+            let mut sht = shtc1(mock, NoopDelay);
+            let measurement = sht.measure().unwrap();
+            assert_eq!(measurement.temperature.as_millidegrees_celsius(), 23_730); // 23.7°C
+            assert_eq!(measurement.humidity.as_millipercent(), 62_968); // 62.9 %RH
+            sht.destroy().done();
+        }
+
+        #[test]
+        fn measure_low_power() {
+            let expectations = [
+                // Expect a write command: Low power mode measurement, temperature
+                // first, no clock stretching.
+                Transaction::write(SHT_ADDR, vec![0x60, 0x9C]),
+                // Return the measurement result (using example values from the
+                // datasheet, section 5.4 "Measuring and Reading the Signals")
+                Transaction::read(
+                    SHT_ADDR,
+                    vec![
+                        0b0110_0100,
+                        0b1000_1011,
+                        0b1100_0111,
+                        0b1010_0001,
+                        0b0011_0011,
+                        0b0001_1100,
+                    ],
+                ),
+            ];
+            let mock = I2cMock::new(&expectations);
+            let mut sht = shtc3(mock, NoopDelay);
+            let measurement = sht.measure(PowerMode::LowPower).unwrap();
+            assert_eq!(measurement.temperature.as_millidegrees_celsius(), 23_730); // 23.7°C
+            assert_eq!(measurement.humidity.as_millipercent(), 62_968); // 62.9 %RH
+            sht.destroy().done();
+        }
+
+        #[test]
+        fn measure_temperature_only() {
+            let expectations = [
+                // Expect a write command: Normal mode measurement, temperature
+                // first, no clock stretching.
+                Transaction::write(SHT_ADDR, vec![0x78, 0x66]),
+                // Return the measurement result (using example values from the
+                // datasheet, section 5.4 "Measuring and Reading the Signals")
+                Transaction::read(SHT_ADDR, vec![0b0110_0100, 0b1000_1011, 0b1100_0111]),
+            ];
+            let mock = I2cMock::new(&expectations);
+            let mut sht = shtc3(mock, NoopDelay);
+            let temperature = sht.measure_temperature(PowerMode::NormalMode).unwrap();
+            assert_eq!(temperature.as_millidegrees_celsius(), 23_730); // 23.7°C
+            sht.destroy().done();
+        }
+
+        #[test]
+        fn measure_humidity_only() {
+            let expectations = [
+                // Expect a write command: Normal mode measurement, humidity
+                // first, no clock stretching.
+                Transaction::write(SHT_ADDR, vec![0x58, 0xE0]),
+                // Return the measurement result (using example values from the
+                // datasheet, section 5.4 "Measuring and Reading the Signals")
+                Transaction::read(SHT_ADDR, vec![0b1010_0001, 0b0011_0011, 0b0001_1100]),
+            ];
+            let mock = I2cMock::new(&expectations);
+            let mut sht = shtc3(mock, NoopDelay);
+            let humidity = sht.measure_humidity(PowerMode::NormalMode).unwrap();
+            assert_eq!(humidity.as_millipercent(), 62_968); // 62.9 %RH
+            sht.destroy().done();
+        }
+
+        /// Ensure that I²C write errors are handled when measuring.
+        #[test]
+        fn measure_write_error() {
+            let expectations = [Transaction::write(SHT_ADDR, vec![0x60, 0x9C])
+                .with_error(MockError::Io(ErrorKind::Other))];
+            let mock = I2cMock::new(&expectations);
+            let mut sht = shtc3(mock, NoopDelay);
+            let err = sht.measure(PowerMode::LowPower).unwrap_err();
+            assert_eq!(err, Error::I2c(MockError::Io(ErrorKind::Other)));
+            sht.destroy().done();
+        }
     }
 
-    /// Test the `reset` function.
-    #[test]
-    fn reset() {
-        let expectations = [Transaction::write(SHT_ADDR, vec![0x80, 0x5D])];
-        let mock = I2cMock::new(&expectations);
-        let mut sht = ShtCx::new(mock, SHT_ADDR, NoopDelay);
-        sht.reset().unwrap();
-        sht.destroy().done();
-    }
+    mod power_management {
+        use super::*;
 
-    /// Test the `Temperature` wrapper.
-    #[test]
-    fn temperature() {
-        let temp = Temperature(23458);
-        assert_eq!(temp.as_degrees_celsius(), 23.458);
-        assert_eq!(temp.as_millidegrees_celsius(), 23458);
-    }
+        /// Test the `sleep` function.
+        #[test]
+        fn sleep() {
+            let expectations = [Transaction::write(SHT_ADDR, vec![0xB0, 0x98])];
+            let mock = I2cMock::new(&expectations);
+            let mut sht = shtc3(mock, NoopDelay);
+            sht.sleep().unwrap();
+            sht.destroy().done();
+        }
 
-    /// Test the `Humidity` wrapper.
-    #[test]
-    fn humidity() {
-        let temp = Humidity(69884);
-        assert_eq!(temp.as_percent(), 69.884);
-        assert_eq!(temp.as_millipercent(), 69884);
+        /// Test the `wakeup` function.
+        #[test]
+        fn wakeup() {
+            let expectations = [Transaction::write(SHT_ADDR, vec![0x35, 0x17])];
+            let mock = I2cMock::new(&expectations);
+            let mut sht = shtc3(mock, NoopDelay);
+            sht.wakeup().unwrap();
+            sht.destroy().done();
+        }
+
+        /// Test the `reset` function.
+        #[test]
+        fn reset() {
+            let expectations = [Transaction::write(SHT_ADDR, vec![0x80, 0x5D])];
+            let mock = I2cMock::new(&expectations);
+            let mut sht = shtc3(mock, NoopDelay);
+            sht.reset().unwrap();
+            sht.destroy().done();
+        }
     }
 }
