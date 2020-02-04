@@ -237,11 +237,26 @@ impl Command {
     }
 }
 
+/// This non-public module is used to wrap public traits used inside the crate,
+/// which should not be public to the user.
+///
+/// This helps getting around the "can't leak private trait" error message.
+mod somewhat_private_traits {
+    use super::PowerMode;
+
+    pub trait MeasurementDuration {
+        /// Return the max measurement duration (depending on the mode) in
+        /// microseconds.
+        fn max_measurement_duration(mode: PowerMode) -> u16;
+    }
+}
+use somewhat_private_traits::*;
+
 /// Type parameters for the different sensor classes.
 pub mod sensor_class {
-    /// Type parameter: Basic SHT sensor (SHTC1).
+    /// Type parameter: Basic SHT sensor (SHTC1, SHTW2).
     pub struct ShtBasic;
-    /// Type parameter: Low power SHT sensor (SHTC3, SHTW2).
+    /// Type parameter: Low power SHT sensor (SHTC3).
     pub struct ShtLowPower;
     /// Type parameter: Generic driver that should work with all SHTCx sensors.
     pub struct ShtGeneric;
@@ -327,9 +342,56 @@ pub fn generic<I2C, D>(i2c: I2C, address: u8, delay: D) -> ShtCx<sensor_class::S
     }
 }
 
+impl MeasurementDuration for sensor_class::ShtBasic {
+    /// Return the max measurement duration in microseconds.
+    ///
+    /// Max measurement duration (SHTC1/SHTW2 datasheet 3.1): 14.4 ms.
+    fn max_measurement_duration(mode: PowerMode) -> u16 {
+        match mode {
+            PowerMode::NormalMode => 14400,
+            PowerMode::LowPower => {
+                unreachable!("Unparametrized measurements should not use low power mode")
+            }
+        }
+    }
+}
+
+impl MeasurementDuration for sensor_class::ShtLowPower {
+    /// Return the max measurement duration (depending on the mode) in
+    /// microseconds.
+    ///
+    /// Max measurement duration (SHTC3 datasheet 3.1):
+    /// - Normal mode: 12.1 ms
+    /// - Low power mode: 0.8 ms
+    fn max_measurement_duration(mode: PowerMode) -> u16 {
+        match mode {
+            PowerMode::NormalMode => 12100,
+            PowerMode::LowPower => 800,
+        }
+    }
+}
+
+impl MeasurementDuration for sensor_class::ShtGeneric {
+    /// Return the max measurement duration (depending on the mode) in
+    /// microseconds.
+    ///
+    /// Because this duration should work for all sensor models, it chooses the
+    /// max duration of all models.
+    ///
+    /// Max measurement duration:
+    /// - Normal mode: 14.4 ms (SHTC1, SHTW2)
+    /// - Low power mode: 0.8 ms (SHTC3)
+    fn max_measurement_duration(mode: PowerMode) -> u16 {
+        match mode {
+            PowerMode::NormalMode => 14400,
+            PowerMode::LowPower => 800,
+        }
+    }
+}
+
 impl<S, I2C, D, E> ShtCx<S, I2C, D>
 where
-    S: ShtSensor,
+    S: ShtSensor + MeasurementDuration,
     I2C: Read<Error = E> + Write<Error = E> + WriteRead<Error = E>,
     D: DelayUs<u16> + DelayMs<u16>,
 {
@@ -395,10 +457,11 @@ where
         Ok(lsb | msb)
     }
 
-    /// Do a partial measurement (depending on the order) and write it into the
-    /// provided buffer.
+    /// Do a measurement with the specified measurement order and write the
+    /// result into the provided buffer.
     ///
-    /// If you just need one of the two measurements, provide a 3-byte buffer.
+    /// If you just need one of the two measurements, provide a 3-byte buffer
+    /// instead of a 6-byte buffer.
     fn measure_partial(
         &mut self,
         mode: PowerMode,
@@ -415,59 +478,11 @@ where
         })?;
 
         // Wait for measurement
-        // Max measurement duration (datasheet 3.1):
-        // - Normal mode: 12.1 ms
-        // - Low power mode: 0.8 ms
-        self.delay.delay_us(match mode {
-            PowerMode::NormalMode => 12100,
-            PowerMode::LowPower => 800,
-        });
+        self.delay.delay_us(S::max_measurement_duration(mode));
 
         // Read response
         self.read_with_crc(buf)?;
         Ok(())
-    }
-
-    /// Run a temperature/humidity measurement and return the combined result.
-    ///
-    /// This is a blocking function call. It will take around 12 ms for a
-    /// normal mode measurement and around 1 ms for a low power mode
-    /// measurement.
-    pub fn measure(&mut self, mode: PowerMode) -> Result<Measurement, Error<E>> {
-        let mut buf = [0; 6];
-        self.measure_partial(mode, MeasurementOrder::TemperatureFirst, &mut buf)?;
-        Ok(Measurement {
-            temperature: Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])),
-            humidity: Humidity::from_raw(u16::from_be_bytes([buf[3], buf[4]])),
-        })
-    }
-
-    /// Run a temperature measurement and return the result.
-    ///
-    /// This is a blocking function call. It will take around 12 ms for a
-    /// normal mode measurement and around 1 ms for a low power mode
-    /// measurement.
-    ///
-    /// Internally, it will request a measurement in "temperature first" mode
-    /// and only read the first half of the measurement response.
-    pub fn measure_temperature(&mut self, mode: PowerMode) -> Result<Temperature, Error<E>> {
-        let mut buf = [0; 3];
-        self.measure_partial(mode, MeasurementOrder::TemperatureFirst, &mut buf)?;
-        Ok(Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
-    }
-
-    /// Run a humidity measurement and return the result.
-    ///
-    /// This is a blocking function call. It will take around 12 ms for a
-    /// normal mode measurement and around 1 ms for a low power mode
-    /// measurement.
-    ///
-    /// Internally, it will request a measurement in "humidity first" mode
-    /// and only read the first half of the measurement response.
-    pub fn measure_humidity(&mut self, mode: PowerMode) -> Result<Humidity, Error<E>> {
-        let mut buf = [0; 3];
-        self.measure_partial(mode, MeasurementOrder::HumidityFirst, &mut buf)?;
-        Ok(Humidity::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
     }
 
     /// Trigger a soft reset.
@@ -484,6 +499,117 @@ where
         Ok(())
     }
 }
+
+macro_rules! impl_measurement_parametrized {
+    ($target:ty) => {
+        impl<I2C, D, E> ShtCx<$target, I2C, D>
+        where
+            I2C: Read<Error = E> + Write<Error = E> + WriteRead<Error = E>,
+            D: DelayUs<u16> + DelayMs<u16>,
+        {
+            /// Run a temperature/humidity measurement and return the combined result.
+            ///
+            /// This is a blocking function call.
+            pub fn measure(&mut self, mode: PowerMode) -> Result<Measurement, Error<E>> {
+                let mut buf = [0; 6];
+                self.measure_partial(mode, MeasurementOrder::TemperatureFirst, &mut buf)?;
+                Ok(Measurement {
+                    temperature: Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])),
+                    humidity: Humidity::from_raw(u16::from_be_bytes([buf[3], buf[4]])),
+                })
+            }
+
+            /// Run a temperature measurement and return the result.
+            ///
+            /// This is a blocking function call.
+            ///
+            /// Internally, it will request a measurement in "temperature first" mode
+            /// and only read the first half of the measurement response.
+            pub fn measure_temperature(
+                &mut self,
+                mode: PowerMode,
+            ) -> Result<Temperature, Error<E>> {
+                let mut buf = [0; 3];
+                self.measure_partial(mode, MeasurementOrder::TemperatureFirst, &mut buf)?;
+                Ok(Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
+            }
+
+            /// Run a humidity measurement and return the result.
+            ///
+            /// This is a blocking function call.
+            ///
+            /// Internally, it will request a measurement in "humidity first" mode
+            /// and only read the first half of the measurement response.
+            pub fn measure_humidity(&mut self, mode: PowerMode) -> Result<Humidity, Error<E>> {
+                let mut buf = [0; 3];
+                self.measure_partial(mode, MeasurementOrder::HumidityFirst, &mut buf)?;
+                Ok(Humidity::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
+            }
+        }
+    };
+}
+
+macro_rules! impl_measurement_unparametrized {
+    ($target:ty) => {
+        impl<I2C, D, E> ShtCx<$target, I2C, D>
+        where
+            I2C: Read<Error = E> + Write<Error = E> + WriteRead<Error = E>,
+            D: DelayUs<u16> + DelayMs<u16>,
+        {
+            /// Run a temperature/humidity measurement and return the combined result.
+            ///
+            /// This is a blocking function call.
+            pub fn measure(&mut self) -> Result<Measurement, Error<E>> {
+                let mut buf = [0; 6];
+                self.measure_partial(
+                    PowerMode::NormalMode,
+                    MeasurementOrder::TemperatureFirst,
+                    &mut buf,
+                )?;
+                Ok(Measurement {
+                    temperature: Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])),
+                    humidity: Humidity::from_raw(u16::from_be_bytes([buf[3], buf[4]])),
+                })
+            }
+
+            /// Run a temperature measurement and return the result.
+            ///
+            /// This is a blocking function call.
+            ///
+            /// Internally, it will request a measurement in "temperature first" mode
+            /// and only read the first half of the measurement response.
+            pub fn measure_temperature(&mut self) -> Result<Temperature, Error<E>> {
+                let mut buf = [0; 3];
+                self.measure_partial(
+                    PowerMode::NormalMode,
+                    MeasurementOrder::TemperatureFirst,
+                    &mut buf,
+                )?;
+                Ok(Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
+            }
+
+            /// Run a humidity measurement and return the result.
+            ///
+            /// This is a blocking function call.
+            ///
+            /// Internally, it will request a measurement in "humidity first" mode
+            /// and only read the first half of the measurement response.
+            pub fn measure_humidity(&mut self) -> Result<Humidity, Error<E>> {
+                let mut buf = [0; 3];
+                self.measure_partial(
+                    PowerMode::NormalMode,
+                    MeasurementOrder::HumidityFirst,
+                    &mut buf,
+                )?;
+                Ok(Humidity::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
+            }
+        }
+    };
+}
+
+impl_measurement_unparametrized!(sensor_class::ShtBasic);
+impl_measurement_parametrized!(sensor_class::ShtLowPower);
+impl_measurement_parametrized!(sensor_class::ShtGeneric);
 
 /// Low power functionality (sleep and wakeup).
 ///
