@@ -153,7 +153,6 @@ use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
 use crc::crc8;
 pub use types::*;
 
-
 /// Whether temperature or humidity is returned first when doing a measurement.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum MeasurementOrder {
@@ -238,18 +237,21 @@ impl Command {
     }
 }
 
-/// Type parameter: SHTC1.
-pub struct ShtC1;
-/// Type parameter: SHTC3.
-pub struct ShtC3;
-/// Type parameter: Generic driver that should work with all SHTCx sensors.
-pub struct ShtGeneric;
+/// Type parameters for the different sensor classes.
+pub mod sensor_class {
+    /// Type parameter: Basic SHT sensor (SHTC1).
+    pub struct ShtBasic;
+    /// Type parameter: Low power SHT sensor (SHTC3, SHTW2).
+    pub struct ShtLowPower;
+    /// Type parameter: Generic driver that should work with all SHTCx sensors.
+    pub struct ShtGeneric;
+}
 
-/// Marker trait implemented for all supported sensor models.
+/// Marker trait implemented for all supported sensor classes.
 pub trait ShtSensor {}
-impl ShtSensor for ShtC1 {}
-impl ShtSensor for ShtC3 {}
-impl ShtSensor for ShtGeneric {}
+impl ShtSensor for sensor_class::ShtBasic {}
+impl ShtSensor for sensor_class::ShtLowPower {}
+impl ShtSensor for sensor_class::ShtGeneric {}
 
 /// Driver for the SHTCx sensor.
 ///
@@ -269,7 +271,10 @@ pub struct ShtCx<S: ShtSensor, I2C, D> {
 }
 
 /// Create a new instance of the driver for the SHTC1.
-pub fn shtc1<I2C, D>(i2c: I2C, delay: D) -> ShtCx<ShtC1, I2C, D> {
+///
+/// See [ShtCx](struct.ShtCx.html) for detailed documentation of the available
+/// methods.
+pub fn shtc1<I2C, D>(i2c: I2C, delay: D) -> ShtCx<sensor_class::ShtBasic, I2C, D> {
     ShtCx {
         sensor: PhantomData,
         i2c,
@@ -279,7 +284,10 @@ pub fn shtc1<I2C, D>(i2c: I2C, delay: D) -> ShtCx<ShtC1, I2C, D> {
 }
 
 /// Create a new instance of the driver for the SHTC3.
-pub fn shtc3<I2C, D>(i2c: I2C, delay: D) -> ShtCx<ShtC3, I2C, D> {
+///
+/// See [ShtCx](struct.ShtCx.html) for detailed documentation of the available
+/// methods.
+pub fn shtc3<I2C, D>(i2c: I2C, delay: D) -> ShtCx<sensor_class::ShtLowPower, I2C, D> {
     ShtCx {
         sensor: PhantomData,
         i2c,
@@ -292,7 +300,10 @@ pub fn shtc3<I2C, D>(i2c: I2C, delay: D) -> ShtCx<ShtC3, I2C, D> {
 ///
 /// Since the SHTW2 is also available in an alternative address version, the
 /// I²C address must be explicitly specified. For the standard SHTW2, it's 0x70.
-pub fn shtw2<I2C, D>(i2c: I2C, address: u8, delay: D) -> ShtCx<ShtC1, I2C, D> {
+///
+/// See [ShtCx](struct.ShtCx.html) for detailed documentation of the available
+/// methods.
+pub fn shtw2<I2C, D>(i2c: I2C, address: u8, delay: D) -> ShtCx<sensor_class::ShtBasic, I2C, D> {
     // Note: Internally, the SHTW2 is identical to the SHTC1, just with
     // different packaging.
     ShtCx {
@@ -304,7 +315,10 @@ pub fn shtw2<I2C, D>(i2c: I2C, address: u8, delay: D) -> ShtCx<ShtC1, I2C, D> {
 }
 
 /// Create a new generic instance of the driver.
-pub fn generic<I2C, D>(i2c: I2C, address: u8, delay: D) -> ShtCx<ShtGeneric, I2C, D> {
+///
+/// See [ShtCx](struct.ShtCx.html) for detailed documentation of the available
+/// methods.
+pub fn generic<I2C, D>(i2c: I2C, address: u8, delay: D) -> ShtCx<sensor_class::ShtGeneric, I2C, D> {
     ShtCx {
         sensor: PhantomData,
         i2c,
@@ -505,11 +519,11 @@ macro_rules! impl_low_power {
                 Ok(())
             }
         }
-    }
+    };
 }
 
-impl_low_power!(ShtC3);
-impl_low_power!(ShtGeneric);
+impl_low_power!(sensor_class::ShtLowPower);
+impl_low_power!(sensor_class::ShtGeneric);
 
 #[cfg(test)]
 mod tests {

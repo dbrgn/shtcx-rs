@@ -1,7 +1,7 @@
 //! Test driver with an SHTC3 sensor on Linux.
 
 use linux_embedded_hal::{Delay, I2cdev};
-use shtcx::{self, PowerMode, LowPower};
+use shtcx::{self, LowPower, PowerMode};
 
 fn main() {
     let dev = I2cdev::new("/dev/i2c-1").unwrap();

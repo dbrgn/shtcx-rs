@@ -67,7 +67,6 @@ fn convert_humidity(humi_raw: u16) -> i32 {
     (((humi_raw as u32) * 12500) >> 13) as i32
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
