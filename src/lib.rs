@@ -834,8 +834,8 @@ mod tests {
                 ),
             ];
             let mock = I2cMock::new(&expectations);
-            let mut sht = shtc3(mock, NoopDelay);
-            let measurement = sht.measure(PowerMode::NormalMode).unwrap();
+            let mut sht = shtc1(mock, NoopDelay);
+            let measurement = sht.measure().unwrap();
             assert_eq!(measurement.temperature.as_millidegrees_celsius(), 23_730); // 23.7°C
             assert_eq!(measurement.humidity.as_millipercent(), 62_968); // 62.9 %RH
             sht.destroy().done();

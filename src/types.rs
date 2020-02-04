@@ -106,4 +106,18 @@ mod tests {
         assert_eq!(temperature, 23730);
         assert_eq!(humidity, 62968);
     }
+
+    #[test]
+    fn temperature() {
+        let temp = Temperature(24123);
+        assert_eq!(temp.as_millidegrees_celsius(), 24123);
+        assert_eq!(temp.as_degrees_celsius(), 24.123);
+    }
+
+    #[test]
+    fn humidity() {
+        let humi = Humidity(65432);
+        assert_eq!(humi.as_millipercent(), 65432);
+        assert_eq!(humi.as_percent(), 65.432);
+    }
 }
