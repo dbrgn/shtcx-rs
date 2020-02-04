@@ -1,20 +1,17 @@
-# Rust SHTCx Driver
+# Rust SHTCx / SHTWx Driver
 
 [![Build status][workflow-badge]][workflow]
 [![Test coverage][codecov-badge]][codecov]
 [![Crates.io Version][crates-io-badge]][crates-io]
 [![Crates.io Downloads][crates-io-download-badge]][crates-io-download]
 
-This is a platform agnostic Rust driver for the Sensirion SHTCx temperature /
-humidity sensor series, based on the
+This is a platform agnostic Rust driver for the Sensirion SHTCx and SHTWx
+temperature / humidity sensor series, based on the
 [`embedded-hal`](https://github.com/rust-embedded/embedded-hal) traits.
 
 Tested with the following sensors:
 
 - [SHTC3](https://www.sensirion.com/shtc3/)
-
-Support for the SHTC1 will be added later on. Support for SHTWx should be
-doable as well, since the protocol seems to be very similar.
 
 Docs: https://docs.rs/shtcx
 
@@ -22,6 +19,9 @@ Docs: https://docs.rs/shtcx
 
 The Sensirion SHTCx series offers low-power high-precision digital temperature
 and humidity sensors that communicate over the I²C bus.
+
+The SHTWx series uses the same protocol, but in a wafer-level chip-scale
+package (WLCSP).
 
 ## Status
 
