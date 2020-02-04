@@ -7,7 +7,7 @@ fn main() {
     let dev = I2cdev::new("/dev/i2c-1").unwrap();
     let mut sht = shtcx::shtc3(dev, Delay);
 
-    println!("Starting SHTCx tests.");
+    println!("Starting SHTC3 tests.");
     println!("Waking up sensor.");
     println!();
     sht.wakeup().unwrap();

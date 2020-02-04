@@ -1,7 +1,10 @@
 #!/bin/bash
+target=arm-unknown-linux-musleabihf
 echo "Building examples for Raspberry Pi Model B..."
 echo ""
-echo "=> linux"
-cargo build --release --example linux --target=arm-unknown-linux-musleabihf
-echo "=> monitor"
-cargo build --release --example monitor --target=arm-unknown-linux-musleabihf
+echo "=> linux-shtc1"
+cargo build --release --example linux-shtc1 --target=$target
+echo "=> linux-shtc3"
+cargo build --release --example linux-shtc3 --target=$target
+echo "=> monitor-shtc3"
+cargo build --release --example monitor-shtc3 --target=$target
