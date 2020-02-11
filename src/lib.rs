@@ -254,18 +254,18 @@ use somewhat_private_traits::*;
 
 /// Type parameters for the different sensor classes.
 pub mod sensor_class {
-    /// Type parameter: Basic SHT sensor (SHTC1, SHTW2).
-    pub struct ShtBasic;
-    /// Type parameter: Low power SHT sensor (SHTC3).
-    pub struct ShtLowPower;
+    /// Type parameter: First generation SHT sensor (SHTC1, SHTW2).
+    pub struct Sht1Gen;
+    /// Type parameter: Second generation SHT sensor (SHTC3).
+    pub struct Sht2Gen;
     /// Type parameter: Generic driver that should work with all SHTCx sensors.
     pub struct ShtGeneric;
 }
 
 /// Marker trait implemented for all supported sensor classes.
 pub trait ShtSensor {}
-impl ShtSensor for sensor_class::ShtBasic {}
-impl ShtSensor for sensor_class::ShtLowPower {}
+impl ShtSensor for sensor_class::Sht1Gen {}
+impl ShtSensor for sensor_class::Sht2Gen {}
 impl ShtSensor for sensor_class::ShtGeneric {}
 
 /// Driver for the SHTCx sensor.
@@ -289,7 +289,7 @@ pub struct ShtCx<S: ShtSensor, I2C, D> {
 ///
 /// See [ShtCx](struct.ShtCx.html) for detailed documentation of the available
 /// methods.
-pub fn shtc1<I2C, D>(i2c: I2C, delay: D) -> ShtCx<sensor_class::ShtBasic, I2C, D> {
+pub fn shtc1<I2C, D>(i2c: I2C, delay: D) -> ShtCx<sensor_class::Sht1Gen, I2C, D> {
     ShtCx {
         sensor: PhantomData,
         i2c,
@@ -302,7 +302,7 @@ pub fn shtc1<I2C, D>(i2c: I2C, delay: D) -> ShtCx<sensor_class::ShtBasic, I2C, D
 ///
 /// See [ShtCx](struct.ShtCx.html) for detailed documentation of the available
 /// methods.
-pub fn shtc3<I2C, D>(i2c: I2C, delay: D) -> ShtCx<sensor_class::ShtLowPower, I2C, D> {
+pub fn shtc3<I2C, D>(i2c: I2C, delay: D) -> ShtCx<sensor_class::Sht2Gen, I2C, D> {
     ShtCx {
         sensor: PhantomData,
         i2c,
@@ -318,7 +318,7 @@ pub fn shtc3<I2C, D>(i2c: I2C, delay: D) -> ShtCx<sensor_class::ShtLowPower, I2C
 ///
 /// See [ShtCx](struct.ShtCx.html) for detailed documentation of the available
 /// methods.
-pub fn shtw2<I2C, D>(i2c: I2C, address: u8, delay: D) -> ShtCx<sensor_class::ShtBasic, I2C, D> {
+pub fn shtw2<I2C, D>(i2c: I2C, address: u8, delay: D) -> ShtCx<sensor_class::Sht1Gen, I2C, D> {
     // Note: Internally, the SHTW2 is identical to the SHTC1, just with
     // different packaging.
     ShtCx {
@@ -342,7 +342,7 @@ pub fn generic<I2C, D>(i2c: I2C, address: u8, delay: D) -> ShtCx<sensor_class::S
     }
 }
 
-impl MeasurementDuration for sensor_class::ShtBasic {
+impl MeasurementDuration for sensor_class::Sht1Gen {
     /// Return the max measurement duration in microseconds.
     ///
     /// Max measurement duration:
@@ -356,7 +356,7 @@ impl MeasurementDuration for sensor_class::ShtBasic {
     }
 }
 
-impl MeasurementDuration for sensor_class::ShtLowPower {
+impl MeasurementDuration for sensor_class::Sht2Gen {
     /// Return the max measurement duration (depending on the mode) in
     /// microseconds.
     ///
@@ -573,7 +573,7 @@ macro_rules! impl_low_power {
     };
 }
 
-impl_low_power!(sensor_class::ShtLowPower);
+impl_low_power!(sensor_class::Sht2Gen);
 impl_low_power!(sensor_class::ShtGeneric);
 
 #[cfg(test)]
