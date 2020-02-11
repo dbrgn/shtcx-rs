@@ -159,7 +159,7 @@ mod types;
 use core::marker::PhantomData;
 
 use embedded_hal::blocking::delay::{DelayMs, DelayUs};
-use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
+use embedded_hal::blocking::i2c::{Read, Write};
 
 use crc::crc8;
 pub use types::*;
@@ -403,7 +403,7 @@ impl MeasurementDuration for sensor_class::ShtGeneric {
 impl<S, I2C, D, E> ShtCx<S, I2C, D>
 where
     S: ShtSensor + MeasurementDuration,
-    I2C: Read<Error = E> + Write<Error = E> + WriteRead<Error = E>,
+    I2C: Read<Error = E> + Write<Error = E>,
     D: DelayUs<u16> + DelayMs<u16>,
 {
     /// Destroy driver instance, return I²C bus instance.
@@ -567,7 +567,7 @@ macro_rules! impl_low_power {
     ($target:ty) => {
         impl<I2C, D, E> LowPower<E> for ShtCx<$target, I2C, D>
         where
-            I2C: Read<Error = E> + Write<Error = E> + WriteRead<Error = E>,
+            I2C: Read<Error = E> + Write<Error = E>,
             D: DelayUs<u16> + DelayMs<u16>,
         {
             fn sleep(&mut self) -> Result<(), Error<E>> {
