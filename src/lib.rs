@@ -8,21 +8,18 @@
 //!
 //! Tested with the following sensors:
 //!
+//! - [SHTC1](https://www.sensirion.com/shtc1/)
 //! - [SHTC3](https://www.sensirion.com/shtc3/)
 //!
-//! Support for the SHTC1 will be added later on. Support for SHTWx should be
-//! doable as well, since the protocol seems to be very similar.
+//! The following sensors were not tested, but should work out-of-the-box:
+//!
+//! - [SHTW2](https://www.sensirion.com/shtw2/)
 //!
 //! ## Blocking / Non-Blocking Modes
 //!
 //! This driver currently uses only blocking calls. Non-blocking measurements may
 //! be added in the future. Clock stretching is not implemented and probably won't
 //! be.
-//!
-//! ## The Device
-//!
-//! The Sensirion SHTCx series offers low-power high-precision digital
-//! temperature and humidity sensors that communicate over the I²C bus.
 //!
 //! ## Examples
 //!
@@ -38,9 +35,9 @@
 //! ### Setup
 //!
 //! Instantiate a new driver instance using a [blocking I²C HAL
-//! implementation](https://docs.rs/embedded-hal/0.2.3/embedded_hal/blocking/i2c/index.html)
+//! implementation](https://docs.rs/embedded-hal/0.2.*/embedded_hal/blocking/i2c/index.html)
 //! and a [blocking `Delay`
-//! instance](https://docs.rs/embedded-hal/0.2.3/embedded_hal/blocking/delay/index.html).
+//! instance](https://docs.rs/embedded-hal/0.2.*/embedded_hal/blocking/delay/index.html).
 //! For example, using `linux-embedded-hal` and an SHTC3 sensor:
 //!
 //! ```no_run
@@ -139,6 +136,20 @@
 //! # let mut sht = shtcx::shtc3(I2cdev::new("/dev/i2c-1").unwrap(), Delay);
 //! sht.reset().unwrap();
 //! ```
+//!
+//! ### Generic Driver
+//!
+//! The `shtcx` driver supports use cases where the exact model of the sensor
+//! is not known in advance. In that case, use the [`generic`](fn.generic.html)
+//! factory function to create an instance of the driver that supports all
+//! features available in all supported sensor types.
+//!
+//! Note however that sending commands to sensors that don't implement them
+//! (e.g. sending a [`sleep`](trait.LowPower.html#tymethod.sleep)-command to an
+//! SHTC1 sensor) will result in a runtime error. Furthermore, maximal timing
+//! tolerances will be ensured, so using the generic driver with the SHTC3 will
+//! result in slightly slower measurements (and slightly higher power
+//! consumption) than when using the SHTC3 specific driver.
 #![deny(unsafe_code, missing_docs)]
 #![cfg_attr(not(test), no_std)]
 
@@ -163,7 +174,7 @@ use MeasurementOrder::*;
 
 /// Measurement power mode: Normal mode or low power mode.
 ///
-/// The SHTC3 provides a low power measurement mode. Using the low power mode
+/// The sensors provides a low power measurement mode. Using the low power mode
 /// significantly shortens the measurement duration and thus minimizes the
 /// energy consumption per measurement. The benefit of ultra-low power
 /// consumption comes at the cost of reduced repeatability of the sensor
@@ -449,7 +460,7 @@ where
 
     /// Return the 7-bit device identifier.
     ///
-    /// Should be 0x47 (71) for the SHTC3.
+    /// Should be 0x47 (71) for the SHTC3 and 0x07 (7) for the SHTC1.
     pub fn device_identifier(&mut self) -> Result<u8, Error<E>> {
         let ident = self.raw_id_register()?;
         let lsb = (ident & 0b0011_1111) as u8;
