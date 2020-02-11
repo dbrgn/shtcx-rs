@@ -19,7 +19,7 @@ fn main() {
         sht.device_identifier().unwrap()
     );
     println!(
-        "Raw ID register:   0b{:08b}",
+        "Raw ID register:   0b{:016b}",
         sht.raw_id_register().unwrap()
     );
 
