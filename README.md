@@ -4,6 +4,7 @@
 [![Test coverage][codecov-badge]][codecov]
 [![Crates.io Version][crates-io-badge]][crates-io]
 [![Crates.io Downloads][crates-io-download-badge]][crates-io-download]
+![No Std][no-std-badge]
 
 This is a platform agnostic Rust driver for the Sensirion SHTCx and SHTWx
 temperature / humidity sensor series, based on the
@@ -67,3 +68,4 @@ be dual licensed as above, without any additional terms or conditions.
 [crates-io-badge]: https://img.shields.io/crates/v/shtcx.svg?maxAge=3600
 [crates-io-download]: https://crates.io/crates/shtcx
 [crates-io-download-badge]: https://img.shields.io/crates/d/shtcx.svg?maxAge=3600
+[no-std-badge]: https://img.shields.io/badge/no__std-yes-blue
