@@ -13,16 +13,19 @@ fn main() {
     sht.wakeup().unwrap();
 
     println!(
-        "Device identifier: 0x{:x}",
+        "Device identifier: 0x{:02x}",
         sht.device_identifier().unwrap()
     );
-    println!("Raw ID register:   0b{:b}", sht.raw_id_register().unwrap());
+    println!(
+        "Raw ID register:   0b{:08b}",
+        sht.raw_id_register().unwrap()
+    );
 
     println!("\nNormal mode measurements:");
     for _ in 0..3 {
         let measurement = sht.measure(PowerMode::NormalMode).unwrap();
         println!(
-            "- {:.2} °C | {:.2} %RH",
+            "  {:.2} °C | {:.2} %RH",
             measurement.temperature.as_degrees_celsius(),
             measurement.humidity.as_percent(),
         );
@@ -32,7 +35,7 @@ fn main() {
     for _ in 0..3 {
         let measurement = sht.measure(PowerMode::LowPower).unwrap();
         println!(
-            "- {:.2} °C | {:.2} %RH",
+            "  {:.2} °C | {:.2} %RH",
             measurement.temperature.as_degrees_celsius(),
             measurement.humidity.as_percent(),
         );
