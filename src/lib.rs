@@ -8,21 +8,18 @@
 //!
 //! Tested with the following sensors:
 //!
+//! - [SHTC1](https://www.sensirion.com/shtc1/)
 //! - [SHTC3](https://www.sensirion.com/shtc3/)
 //!
-//! Support for the SHTC1 will be added later on. Support for SHTWx should be
-//! doable as well, since the protocol seems to be very similar.
+//! The following sensors were not tested, but should work out-of-the-box:
+//!
+//! - [SHTW2](https://www.sensirion.com/shtw2/)
 //!
 //! ## Blocking / Non-Blocking Modes
 //!
 //! This driver currently uses only blocking calls. Non-blocking measurements may
 //! be added in the future. Clock stretching is not implemented and probably won't
 //! be.
-//!
-//! ## The Device
-//!
-//! The Sensirion SHTCx series offers low-power high-precision digital
-//! temperature and humidity sensors that communicate over the I²C bus.
 //!
 //! ## Examples
 //!
@@ -38,9 +35,9 @@
 //! ### Setup
 //!
 //! Instantiate a new driver instance using a [blocking I²C HAL
-//! implementation](https://docs.rs/embedded-hal/0.2.3/embedded_hal/blocking/i2c/index.html)
+//! implementation](https://docs.rs/embedded-hal/0.2.*/embedded_hal/blocking/i2c/index.html)
 //! and a [blocking `Delay`
-//! instance](https://docs.rs/embedded-hal/0.2.3/embedded_hal/blocking/delay/index.html).
+//! instance](https://docs.rs/embedded-hal/0.2.*/embedded_hal/blocking/delay/index.html).
 //! For example, using `linux-embedded-hal` and an SHTC3 sensor:
 //!
 //! ```no_run
@@ -139,6 +136,20 @@
 //! # let mut sht = shtcx::shtc3(I2cdev::new("/dev/i2c-1").unwrap(), Delay);
 //! sht.reset().unwrap();
 //! ```
+//!
+//! ### Generic Driver
+//!
+//! The `shtcx` driver supports use cases where the exact model of the sensor
+//! is not known in advance. In that case, use the [`generic`](fn.generic.html)
+//! factory function to create an instance of the driver that supports all
+//! features available in all supported sensor types.
+//!
+//! Note however that sending commands to sensors that don't implement them
+//! (e.g. sending a [`sleep`](trait.LowPower.html#tymethod.sleep)-command to an
+//! SHTC1 sensor) will result in a runtime error. Furthermore, maximal timing
+//! tolerances will be ensured, so using the generic driver with the SHTC3 will
+//! result in slightly slower measurements (and slightly higher power
+//! consumption) than when using the SHTC3 specific driver.
 #![deny(unsafe_code, missing_docs)]
 #![cfg_attr(not(test), no_std)]
 
@@ -163,7 +174,7 @@ use MeasurementOrder::*;
 
 /// Measurement power mode: Normal mode or low power mode.
 ///
-/// The SHTC3 provides a low power measurement mode. Using the low power mode
+/// The sensors provides a low power measurement mode. Using the low power mode
 /// significantly shortens the measurement duration and thus minimizes the
 /// energy consumption per measurement. The benefit of ultra-low power
 /// consumption comes at the cost of reduced repeatability of the sensor
@@ -254,18 +265,18 @@ use somewhat_private_traits::*;
 
 /// Type parameters for the different sensor classes.
 pub mod sensor_class {
-    /// Type parameter: Basic SHT sensor (SHTC1, SHTW2).
-    pub struct ShtBasic;
-    /// Type parameter: Low power SHT sensor (SHTC3).
-    pub struct ShtLowPower;
+    /// Type parameter: First generation SHT sensor (SHTC1, SHTW2).
+    pub struct Sht1Gen;
+    /// Type parameter: Second generation SHT sensor (SHTC3).
+    pub struct Sht2Gen;
     /// Type parameter: Generic driver that should work with all SHTCx sensors.
     pub struct ShtGeneric;
 }
 
 /// Marker trait implemented for all supported sensor classes.
 pub trait ShtSensor {}
-impl ShtSensor for sensor_class::ShtBasic {}
-impl ShtSensor for sensor_class::ShtLowPower {}
+impl ShtSensor for sensor_class::Sht1Gen {}
+impl ShtSensor for sensor_class::Sht2Gen {}
 impl ShtSensor for sensor_class::ShtGeneric {}
 
 /// Driver for the SHTCx sensor.
@@ -289,7 +300,7 @@ pub struct ShtCx<S: ShtSensor, I2C, D> {
 ///
 /// See [ShtCx](struct.ShtCx.html) for detailed documentation of the available
 /// methods.
-pub fn shtc1<I2C, D>(i2c: I2C, delay: D) -> ShtCx<sensor_class::ShtBasic, I2C, D> {
+pub fn shtc1<I2C, D>(i2c: I2C, delay: D) -> ShtCx<sensor_class::Sht1Gen, I2C, D> {
     ShtCx {
         sensor: PhantomData,
         i2c,
@@ -302,7 +313,7 @@ pub fn shtc1<I2C, D>(i2c: I2C, delay: D) -> ShtCx<sensor_class::ShtBasic, I2C, D
 ///
 /// See [ShtCx](struct.ShtCx.html) for detailed documentation of the available
 /// methods.
-pub fn shtc3<I2C, D>(i2c: I2C, delay: D) -> ShtCx<sensor_class::ShtLowPower, I2C, D> {
+pub fn shtc3<I2C, D>(i2c: I2C, delay: D) -> ShtCx<sensor_class::Sht2Gen, I2C, D> {
     ShtCx {
         sensor: PhantomData,
         i2c,
@@ -318,7 +329,7 @@ pub fn shtc3<I2C, D>(i2c: I2C, delay: D) -> ShtCx<sensor_class::ShtLowPower, I2C
 ///
 /// See [ShtCx](struct.ShtCx.html) for detailed documentation of the available
 /// methods.
-pub fn shtw2<I2C, D>(i2c: I2C, address: u8, delay: D) -> ShtCx<sensor_class::ShtBasic, I2C, D> {
+pub fn shtw2<I2C, D>(i2c: I2C, address: u8, delay: D) -> ShtCx<sensor_class::Sht1Gen, I2C, D> {
     // Note: Internally, the SHTW2 is identical to the SHTC1, just with
     // different packaging.
     ShtCx {
@@ -342,21 +353,21 @@ pub fn generic<I2C, D>(i2c: I2C, address: u8, delay: D) -> ShtCx<sensor_class::S
     }
 }
 
-impl MeasurementDuration for sensor_class::ShtBasic {
+impl MeasurementDuration for sensor_class::Sht1Gen {
     /// Return the max measurement duration in microseconds.
     ///
-    /// Max measurement duration (SHTC1/SHTW2 datasheet 3.1): 14.4 ms.
+    /// Max measurement duration:
+    /// - Normal mode: 14.4 ms (SHTC1/SHTW2 datasheet 3.1)
+    /// - Low power mode: 0.94 us (SHTC1/SHTW2 low power application note)
     fn max_measurement_duration(mode: PowerMode) -> u16 {
         match mode {
             PowerMode::NormalMode => 14400,
-            PowerMode::LowPower => {
-                unreachable!("Unparametrized measurements should not use low power mode")
-            }
+            PowerMode::LowPower => 940,
         }
     }
 }
 
-impl MeasurementDuration for sensor_class::ShtLowPower {
+impl MeasurementDuration for sensor_class::Sht2Gen {
     /// Return the max measurement duration (depending on the mode) in
     /// microseconds.
     ///
@@ -380,11 +391,11 @@ impl MeasurementDuration for sensor_class::ShtGeneric {
     ///
     /// Max measurement duration:
     /// - Normal mode: 14.4 ms (SHTC1, SHTW2)
-    /// - Low power mode: 0.8 ms (SHTC3)
+    /// - Low power mode: 0.94 ms (SHTC1, SHTW2)
     fn max_measurement_duration(mode: PowerMode) -> u16 {
         match mode {
             PowerMode::NormalMode => 14400,
-            PowerMode::LowPower => 800,
+            PowerMode::LowPower => 940,
         }
     }
 }
@@ -449,7 +460,7 @@ where
 
     /// Return the 7-bit device identifier.
     ///
-    /// Should be 0x47 (71) for the SHTC3.
+    /// Should be 0x47 (71) for the SHTC3 and 0x07 (7) for the SHTC1.
     pub fn device_identifier(&mut self) -> Result<u8, Error<E>> {
         let ident = self.raw_id_register()?;
         let lsb = (ident & 0b0011_1111) as u8;
@@ -485,6 +496,42 @@ where
         Ok(())
     }
 
+    /// Run a temperature/humidity measurement and return the combined result.
+    ///
+    /// This is a blocking function call.
+    pub fn measure(&mut self, mode: PowerMode) -> Result<Measurement, Error<E>> {
+        let mut buf = [0; 6];
+        self.measure_partial(mode, MeasurementOrder::TemperatureFirst, &mut buf)?;
+        Ok(Measurement {
+            temperature: Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])),
+            humidity: Humidity::from_raw(u16::from_be_bytes([buf[3], buf[4]])),
+        })
+    }
+
+    /// Run a temperature measurement and return the result.
+    ///
+    /// This is a blocking function call.
+    ///
+    /// Internally, it will request a measurement in "temperature first" mode
+    /// and only read the first half of the measurement response.
+    pub fn measure_temperature(&mut self, mode: PowerMode) -> Result<Temperature, Error<E>> {
+        let mut buf = [0; 3];
+        self.measure_partial(mode, MeasurementOrder::TemperatureFirst, &mut buf)?;
+        Ok(Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
+    }
+
+    /// Run a humidity measurement and return the result.
+    ///
+    /// This is a blocking function call.
+    ///
+    /// Internally, it will request a measurement in "humidity first" mode
+    /// and only read the first half of the measurement response.
+    pub fn measure_humidity(&mut self, mode: PowerMode) -> Result<Humidity, Error<E>> {
+        let mut buf = [0; 3];
+        self.measure_partial(mode, MeasurementOrder::HumidityFirst, &mut buf)?;
+        Ok(Humidity::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
+    }
+
     /// Trigger a soft reset.
     ///
     /// The SHTC3 provides a soft reset mechanism that forces the system into a
@@ -499,117 +546,6 @@ where
         Ok(())
     }
 }
-
-macro_rules! impl_measurement_parametrized {
-    ($target:ty) => {
-        impl<I2C, D, E> ShtCx<$target, I2C, D>
-        where
-            I2C: Read<Error = E> + Write<Error = E> + WriteRead<Error = E>,
-            D: DelayUs<u16> + DelayMs<u16>,
-        {
-            /// Run a temperature/humidity measurement and return the combined result.
-            ///
-            /// This is a blocking function call.
-            pub fn measure(&mut self, mode: PowerMode) -> Result<Measurement, Error<E>> {
-                let mut buf = [0; 6];
-                self.measure_partial(mode, MeasurementOrder::TemperatureFirst, &mut buf)?;
-                Ok(Measurement {
-                    temperature: Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])),
-                    humidity: Humidity::from_raw(u16::from_be_bytes([buf[3], buf[4]])),
-                })
-            }
-
-            /// Run a temperature measurement and return the result.
-            ///
-            /// This is a blocking function call.
-            ///
-            /// Internally, it will request a measurement in "temperature first" mode
-            /// and only read the first half of the measurement response.
-            pub fn measure_temperature(
-                &mut self,
-                mode: PowerMode,
-            ) -> Result<Temperature, Error<E>> {
-                let mut buf = [0; 3];
-                self.measure_partial(mode, MeasurementOrder::TemperatureFirst, &mut buf)?;
-                Ok(Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
-            }
-
-            /// Run a humidity measurement and return the result.
-            ///
-            /// This is a blocking function call.
-            ///
-            /// Internally, it will request a measurement in "humidity first" mode
-            /// and only read the first half of the measurement response.
-            pub fn measure_humidity(&mut self, mode: PowerMode) -> Result<Humidity, Error<E>> {
-                let mut buf = [0; 3];
-                self.measure_partial(mode, MeasurementOrder::HumidityFirst, &mut buf)?;
-                Ok(Humidity::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
-            }
-        }
-    };
-}
-
-macro_rules! impl_measurement_unparametrized {
-    ($target:ty) => {
-        impl<I2C, D, E> ShtCx<$target, I2C, D>
-        where
-            I2C: Read<Error = E> + Write<Error = E> + WriteRead<Error = E>,
-            D: DelayUs<u16> + DelayMs<u16>,
-        {
-            /// Run a temperature/humidity measurement and return the combined result.
-            ///
-            /// This is a blocking function call.
-            pub fn measure(&mut self) -> Result<Measurement, Error<E>> {
-                let mut buf = [0; 6];
-                self.measure_partial(
-                    PowerMode::NormalMode,
-                    MeasurementOrder::TemperatureFirst,
-                    &mut buf,
-                )?;
-                Ok(Measurement {
-                    temperature: Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])),
-                    humidity: Humidity::from_raw(u16::from_be_bytes([buf[3], buf[4]])),
-                })
-            }
-
-            /// Run a temperature measurement and return the result.
-            ///
-            /// This is a blocking function call.
-            ///
-            /// Internally, it will request a measurement in "temperature first" mode
-            /// and only read the first half of the measurement response.
-            pub fn measure_temperature(&mut self) -> Result<Temperature, Error<E>> {
-                let mut buf = [0; 3];
-                self.measure_partial(
-                    PowerMode::NormalMode,
-                    MeasurementOrder::TemperatureFirst,
-                    &mut buf,
-                )?;
-                Ok(Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
-            }
-
-            /// Run a humidity measurement and return the result.
-            ///
-            /// This is a blocking function call.
-            ///
-            /// Internally, it will request a measurement in "humidity first" mode
-            /// and only read the first half of the measurement response.
-            pub fn measure_humidity(&mut self) -> Result<Humidity, Error<E>> {
-                let mut buf = [0; 3];
-                self.measure_partial(
-                    PowerMode::NormalMode,
-                    MeasurementOrder::HumidityFirst,
-                    &mut buf,
-                )?;
-                Ok(Humidity::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
-            }
-        }
-    };
-}
-
-impl_measurement_unparametrized!(sensor_class::ShtBasic);
-impl_measurement_parametrized!(sensor_class::ShtLowPower);
-impl_measurement_parametrized!(sensor_class::ShtGeneric);
 
 /// Low power functionality (sleep and wakeup).
 ///
@@ -648,7 +584,7 @@ macro_rules! impl_low_power {
     };
 }
 
-impl_low_power!(sensor_class::ShtLowPower);
+impl_low_power!(sensor_class::Sht2Gen);
 impl_low_power!(sensor_class::ShtGeneric);
 
 #[cfg(test)]
@@ -835,7 +771,7 @@ mod tests {
             ];
             let mock = I2cMock::new(&expectations);
             let mut sht = shtc1(mock, NoopDelay);
-            let measurement = sht.measure().unwrap();
+            let measurement = sht.measure(PowerMode::NormalMode).unwrap();
             assert_eq!(measurement.temperature.as_millidegrees_celsius(), 23_730); // 23.7°C
             assert_eq!(measurement.humidity.as_millipercent(), 62_968); // 62.9 %RH
             sht.destroy().done();
