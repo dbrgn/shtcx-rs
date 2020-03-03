@@ -212,7 +212,7 @@ enum Command {
     WakeUp,
     /// Measurement commands.
     Measure {
-        low_power: bool,
+        power_mode: PowerMode,
         order: MeasurementOrder,
     },
     /// Software reset.
@@ -227,19 +227,19 @@ impl Command {
             Command::Sleep => [0xB0, 0x98],
             Command::WakeUp => [0x35, 0x17],
             Command::Measure {
-                low_power: false,
+                power_mode: PowerMode::NormalMode,
                 order: TemperatureFirst,
             } => [0x78, 0x66],
             Command::Measure {
-                low_power: false,
+                power_mode: PowerMode::NormalMode,
                 order: HumidityFirst,
             } => [0x58, 0xE0],
             Command::Measure {
-                low_power: true,
+                power_mode: PowerMode::LowPower,
                 order: TemperatureFirst,
             } => [0x60, 0x9C],
             Command::Measure {
-                low_power: true,
+                power_mode: PowerMode::LowPower,
                 order: HumidityFirst,
             } => [0x40, 0x1A],
             Command::ReadIdRegister => [0xEF, 0xC8],
@@ -481,10 +481,7 @@ where
     ) -> Result<(), Error<E>> {
         // Request measurement
         self.send_command(Command::Measure {
-            low_power: match mode {
-                PowerMode::LowPower => true,
-                PowerMode::NormalMode => false,
-            },
+            power_mode: mode,
             order,
         })?;
 
