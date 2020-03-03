@@ -468,38 +468,59 @@ where
         Ok(lsb | msb)
     }
 
-    /// Do a measurement with the specified measurement order and write the
+    /// Start a measurement with the specified measurement order and write the
     /// result into the provided buffer.
     ///
     /// If you just need one of the two measurements, provide a 3-byte buffer
     /// instead of a 6-byte buffer.
-    fn measure_partial(
+    fn start_measure_partial(
         &mut self,
         power_mode: PowerMode,
         order: MeasurementOrder,
-        buf: &mut [u8],
     ) -> Result<(), Error<E>> {
         // Request measurement
-        self.send_command(Command::Measure { power_mode, order })?;
+        self.send_command(Command::Measure { power_mode, order })
+    }
 
-        // Wait for measurement
-        self.delay.delay_us(S::max_measurement_duration(power_mode));
+    /// Start a temperature / humidity measurement.
+    pub fn start_measurement(&mut self, mode: PowerMode) -> Result<(), Error<E>> {
+        self.start_measure_partial(mode, MeasurementOrder::TemperatureFirst)
+    }
 
-        // Read response
-        self.read_with_crc(buf)?;
-        Ok(())
+    /// Wait the maximum time needed for the given measurement mode
+    pub fn wait_for_measurement(&mut self, mode: PowerMode) {
+        self.delay.delay_us(S::max_measurement_duration(mode));
+    }
+
+    /// Read the result of a temperature / humidity measurement.
+    pub fn get_measurement_result(&mut self) -> Result<Measurement, Error<E>> {
+        let mut buf = [0; 6];
+        self.read_with_crc(&mut buf)?;
+        Ok(Measurement {
+            temperature: Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])),
+            humidity: Humidity::from_raw(u16::from_be_bytes([buf[3], buf[4]])),
+        })
     }
 
     /// Run a temperature/humidity measurement and return the combined result.
     ///
     /// This is a blocking function call.
     pub fn measure(&mut self, mode: PowerMode) -> Result<Measurement, Error<E>> {
-        let mut buf = [0; 6];
-        self.measure_partial(mode, MeasurementOrder::TemperatureFirst, &mut buf)?;
-        Ok(Measurement {
-            temperature: Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])),
-            humidity: Humidity::from_raw(u16::from_be_bytes([buf[3], buf[4]])),
-        })
+        self.start_measurement(mode)?;
+        self.wait_for_measurement(mode);
+        self.get_measurement_result()
+    }
+
+    /// Start a temperature measurement.
+    pub fn start_temperature_measurement(&mut self, mode: PowerMode) -> Result<(), Error<E>> {
+        self.start_measure_partial(mode, MeasurementOrder::TemperatureFirst)
+    }
+
+    /// Read the result of a temperature measurement.
+    pub fn get_temperature_measurement_result(&mut self) -> Result<Temperature, Error<E>> {
+        let mut buf = [0; 3];
+        self.read_with_crc(&mut buf)?;
+        Ok(Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
     }
 
     /// Run a temperature measurement and return the result.
@@ -509,9 +530,21 @@ where
     /// Internally, it will request a measurement in "temperature first" mode
     /// and only read the first half of the measurement response.
     pub fn measure_temperature(&mut self, mode: PowerMode) -> Result<Temperature, Error<E>> {
+        self.start_temperature_measurement(mode)?;
+        self.wait_for_measurement(mode);
+        self.get_temperature_measurement_result()
+    }
+
+    /// Start a humidity measurement.
+    pub fn start_humidity_measurement(&mut self, mode: PowerMode) -> Result<(), Error<E>> {
+        self.start_measure_partial(mode, MeasurementOrder::HumidityFirst)
+    }
+
+    /// Read the result of a humidity measurement.
+    pub fn get_humidity_measurement_result(&mut self) -> Result<Humidity, Error<E>> {
         let mut buf = [0; 3];
-        self.measure_partial(mode, MeasurementOrder::TemperatureFirst, &mut buf)?;
-        Ok(Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
+        self.read_with_crc(&mut buf)?;
+        Ok(Humidity::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
     }
 
     /// Run a humidity measurement and return the result.
@@ -521,9 +554,9 @@ where
     /// Internally, it will request a measurement in "humidity first" mode
     /// and only read the first half of the measurement response.
     pub fn measure_humidity(&mut self, mode: PowerMode) -> Result<Humidity, Error<E>> {
-        let mut buf = [0; 3];
-        self.measure_partial(mode, MeasurementOrder::HumidityFirst, &mut buf)?;
-        Ok(Humidity::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
+        self.start_humidity_measurement(mode)?;
+        self.wait_for_measurement(mode);
+        self.get_humidity_measurement_result()
     }
 
     /// Trigger a soft reset.
