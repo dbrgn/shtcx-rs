@@ -14,9 +14,6 @@ Tested with the following sensors:
 
 - [SHTC1](https://www.sensirion.com/shtc1/)
 - [SHTC3](https://www.sensirion.com/shtc3/)
-
-The following sensors were not tested, but should work out-of-the-box:
-
 - [SHTW2](https://www.sensirion.com/shtw2/)
 
 Docs: https://docs.rs/shtcx
