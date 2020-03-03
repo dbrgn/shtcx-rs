@@ -475,18 +475,15 @@ where
     /// instead of a 6-byte buffer.
     fn measure_partial(
         &mut self,
-        mode: PowerMode,
+        power_mode: PowerMode,
         order: MeasurementOrder,
         buf: &mut [u8],
     ) -> Result<(), Error<E>> {
         // Request measurement
-        self.send_command(Command::Measure {
-            power_mode: mode,
-            order,
-        })?;
+        self.send_command(Command::Measure { power_mode, order })?;
 
         // Wait for measurement
-        self.delay.delay_us(S::max_measurement_duration(mode));
+        self.delay.delay_us(S::max_measurement_duration(power_mode));
 
         // Read response
         self.read_with_crc(buf)?;
