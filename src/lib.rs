@@ -465,6 +465,27 @@ where
         Ok(lsb | msb)
     }
 
+    /// Trigger a soft reset.
+    ///
+    /// The SHTC3 provides a soft reset mechanism that forces the system into a
+    /// well-defined state without removing the power supply. If the system is
+    /// in its idle state (i.e. if no measurement is in progress) the soft
+    /// reset command can be sent. This triggers the sensor to reset all
+    /// internal state machines and reload calibration data from the memory.
+    pub fn reset(&mut self, delay: &mut impl DelayUs<u16>) -> Result<(), Error<E>> {
+        self.send_command(Command::SoftwareReset)?;
+        // Table 5: 180-240 µs
+        delay.delay_us(240);
+        Ok(())
+    }
+}
+
+/// Asynchronous functions for starting / reading measurements.
+impl<S, I2C, E> ShtCx<S, I2C>
+where
+    S: ShtSensor + MeasurementDuration,
+    I2C: Read<Error = E> + Write<Error = E>,
+{
     /// Start a measurement with the specified measurement order and write the
     /// result into the provided buffer.
     ///
@@ -484,11 +505,6 @@ where
         self.start_measure_partial(mode, MeasurementOrder::TemperatureFirst)
     }
 
-    /// Wait the maximum time needed for the given measurement mode
-    pub fn wait_for_measurement(&mut self, mode: PowerMode, delay: &mut impl DelayUs<u16>) {
-        delay.delay_us(S::max_measurement_duration(mode));
-    }
-
     /// Read the result of a temperature / humidity measurement.
     pub fn get_measurement_result(&mut self) -> Result<Measurement, Error<E>> {
         let mut buf = [0; 6];
@@ -497,6 +513,42 @@ where
             temperature: Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])),
             humidity: Humidity::from_raw(u16::from_be_bytes([buf[3], buf[4]])),
         })
+    }
+
+    /// Start a temperature measurement.
+    pub fn start_temperature_measurement(&mut self, mode: PowerMode) -> Result<(), Error<E>> {
+        self.start_measure_partial(mode, MeasurementOrder::TemperatureFirst)
+    }
+
+    /// Read the result of a temperature measurement.
+    pub fn get_temperature_measurement_result(&mut self) -> Result<Temperature, Error<E>> {
+        let mut buf = [0; 3];
+        self.read_with_crc(&mut buf)?;
+        Ok(Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
+    }
+
+    /// Start a humidity measurement.
+    pub fn start_humidity_measurement(&mut self, mode: PowerMode) -> Result<(), Error<E>> {
+        self.start_measure_partial(mode, MeasurementOrder::HumidityFirst)
+    }
+
+    /// Read the result of a humidity measurement.
+    pub fn get_humidity_measurement_result(&mut self) -> Result<Humidity, Error<E>> {
+        let mut buf = [0; 3];
+        self.read_with_crc(&mut buf)?;
+        Ok(Humidity::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
+    }
+}
+
+/// Blocking functions for doing measurements.
+impl<S, I2C, E> ShtCx<S, I2C>
+where
+    S: ShtSensor + MeasurementDuration,
+    I2C: Read<Error = E> + Write<Error = E>,
+{
+    /// Wait the maximum time needed for the given measurement mode
+    pub fn wait_for_measurement(&mut self, mode: PowerMode, delay: &mut impl DelayUs<u16>) {
+        delay.delay_us(S::max_measurement_duration(mode));
     }
 
     /// Run a temperature/humidity measurement and return the combined result.
@@ -510,18 +562,6 @@ where
         self.start_measurement(mode)?;
         self.wait_for_measurement(mode, delay);
         self.get_measurement_result()
-    }
-
-    /// Start a temperature measurement.
-    pub fn start_temperature_measurement(&mut self, mode: PowerMode) -> Result<(), Error<E>> {
-        self.start_measure_partial(mode, MeasurementOrder::TemperatureFirst)
-    }
-
-    /// Read the result of a temperature measurement.
-    pub fn get_temperature_measurement_result(&mut self) -> Result<Temperature, Error<E>> {
-        let mut buf = [0; 3];
-        self.read_with_crc(&mut buf)?;
-        Ok(Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
     }
 
     /// Run a temperature measurement and return the result.
@@ -540,18 +580,6 @@ where
         self.get_temperature_measurement_result()
     }
 
-    /// Start a humidity measurement.
-    pub fn start_humidity_measurement(&mut self, mode: PowerMode) -> Result<(), Error<E>> {
-        self.start_measure_partial(mode, MeasurementOrder::HumidityFirst)
-    }
-
-    /// Read the result of a humidity measurement.
-    pub fn get_humidity_measurement_result(&mut self) -> Result<Humidity, Error<E>> {
-        let mut buf = [0; 3];
-        self.read_with_crc(&mut buf)?;
-        Ok(Humidity::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
-    }
-
     /// Run a humidity measurement and return the result.
     ///
     /// This is a blocking function call.
@@ -566,20 +594,6 @@ where
         self.start_humidity_measurement(mode)?;
         self.wait_for_measurement(mode, delay);
         self.get_humidity_measurement_result()
-    }
-
-    /// Trigger a soft reset.
-    ///
-    /// The SHTC3 provides a soft reset mechanism that forces the system into a
-    /// well-defined state without removing the power supply. If the system is
-    /// in its idle state (i.e. if no measurement is in progress) the soft
-    /// reset command can be sent. This triggers the sensor to reset all
-    /// internal state machines and reload calibration data from the memory.
-    pub fn reset(&mut self, delay: &mut impl DelayUs<u16>) -> Result<(), Error<E>> {
-        self.send_command(Command::SoftwareReset)?;
-        // Table 5: 180-240 µs
-        delay.delay_us(240);
-        Ok(())
     }
 }
 
