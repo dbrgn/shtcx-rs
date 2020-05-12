@@ -5,13 +5,14 @@ use shtcx::{self, PowerMode};
 
 fn main() {
     let dev = I2cdev::new("/dev/i2c-1").unwrap();
-    let mut sht = shtcx::shtc1(dev, Delay);
+    let mut sht = shtcx::shtc1(dev);
+    let mut delay = Delay;
 
     println!("Starting SHTC1 tests.");
     println!();
 
     println!("Soft reset...");
-    sht.reset().unwrap();
+    sht.reset(&mut delay).unwrap();
     println!();
 
     println!(
@@ -25,7 +26,7 @@ fn main() {
 
     println!("\nNormal mode measurements:");
     for _ in 0..3 {
-        let measurement = sht.measure(PowerMode::NormalMode).unwrap();
+        let measurement = sht.measure(PowerMode::NormalMode, &mut delay).unwrap();
         println!(
             "  {:.2} °C | {:.2} %RH",
             measurement.temperature.as_degrees_celsius(),
@@ -35,7 +36,7 @@ fn main() {
 
     println!("\nLow power mode measurements:");
     for _ in 0..3 {
-        let measurement = sht.measure(PowerMode::LowPower).unwrap();
+        let measurement = sht.measure(PowerMode::LowPower, &mut delay).unwrap();
         println!(
             "  {:.2} °C | {:.2} %RH",
             measurement.temperature.as_degrees_celsius(),
