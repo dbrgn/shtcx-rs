@@ -3,7 +3,7 @@
 use std::collections::VecDeque;
 use std::io::{self, Stdout};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{mpsc::channel, Arc};
 use std::thread;
 use std::time::Duration;
 
@@ -52,25 +52,16 @@ fn main() -> Result<(), io::Error> {
     });
 
     // Launch measurement thread
-    let data = Arc::new(Mutex::new(Data::new(DATA_CAPACITY)));
-    let measurement_data = data.clone();
+    let mut data = Data::new(DATA_CAPACITY);
+    let (sender, receiver) = channel();
     thread::spawn(move || {
         loop {
             // Do measurements
             let normal = sht.measure(PowerMode::NormalMode, &mut delay).unwrap();
             let lowpwr = sht.measure(PowerMode::LowPower, &mut delay).unwrap();
 
-            // Update data buffer
-            let mut data = measurement_data.lock().unwrap();
-            data.temp_normal
-                .push_front(normal.temperature.as_millidegrees_celsius());
-            data.temp_lowpwr
-                .push_front(lowpwr.temperature.as_millidegrees_celsius());
-            data.humi_normal
-                .push_front(normal.humidity.as_millipercent());
-            data.humi_lowpwr
-                .push_front(lowpwr.humidity.as_millipercent());
-            data.truncate();
+            // Send measurements over
+            sender.send((normal, lowpwr)).unwrap();
 
             // Sleep
             thread::sleep(SENSOR_REFRESH_DELAY);
@@ -79,7 +70,21 @@ fn main() -> Result<(), io::Error> {
 
     // Render loop
     while run_render_loop.load(Ordering::SeqCst) {
+        // Drain any data updating the buffer
+        for (normal, lowpwr) in receiver.try_iter() {
+            data.temp_normal
+                .push_front(normal.temperature.as_millidegrees_celsius());
+            data.temp_lowpwr
+                .push_front(lowpwr.temperature.as_millidegrees_celsius());
+            data.humi_normal
+                .push_front(normal.humidity.as_millipercent());
+            data.humi_lowpwr
+                .push_front(lowpwr.humidity.as_millipercent());
+        }
+
+        data.truncate();
         render(&mut terminal, &data);
+
         thread::sleep(UI_REFRESH_DELAY);
     }
 
@@ -158,7 +163,7 @@ fn show_chart<B: Backend>(
         .render(frame, area);
 }
 
-fn render(terminal: &mut Terminal<TermionBackend<RawTerminal<Stdout>>>, data: &Arc<Mutex<Data>>) {
+fn render(terminal: &mut Terminal<TermionBackend<RawTerminal<Stdout>>>, data: &Data) {
     terminal
         .draw(|mut f| {
             let chunks = Layout::default()
@@ -167,7 +172,6 @@ fn render(terminal: &mut Terminal<TermionBackend<RawTerminal<Stdout>>>, data: &A
                 .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
                 .split(f.size());
             let (temp_normal, temp_lowpwr, humi_normal, humi_lowpwr) = {
-                let data = data.lock().unwrap();
                 (
                     data.temp_normal
                         .iter()
