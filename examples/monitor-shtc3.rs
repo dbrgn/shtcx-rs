@@ -23,20 +23,6 @@ const UI_REFRESH_DELAY: Duration = Duration::from_millis(25);
 const DATA_CAPACITY: usize = 100;
 
 fn main() -> Result<(), io::Error> {
-    // Initialize sensor driver
-    let dev = I2cdev::new("/dev/i2c-1").unwrap();
-    let mut sht = shtcx::shtc3(dev);
-    let mut delay = Delay;
-
-    // Initialize terminal app
-    let stdout = io::stdout().into_raw_mode()?;
-    let backend = TermionBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
-
-    // Prepare terminal
-    terminal.clear().unwrap();
-    terminal.hide_cursor().unwrap();
-
     // Set up stop signal
     let running = Arc::new(AtomicBool::new(true));
     let run_render_loop = running.clone();
@@ -55,8 +41,13 @@ fn main() -> Result<(), io::Error> {
     let mut data = Data::new(DATA_CAPACITY);
     let (sender, receiver) = channel();
     thread::spawn(move || {
+        // Initialize sensor driver
+        let dev = I2cdev::new("/dev/i2c-1").unwrap();
+        let mut sht = shtcx::shtc3(dev);
+
         loop {
             // Do measurements
+            let mut delay = Delay;
             let normal = sht.measure(PowerMode::NormalMode, &mut delay).unwrap();
             let lowpwr = sht.measure(PowerMode::LowPower, &mut delay).unwrap();
 
@@ -67,6 +58,15 @@ fn main() -> Result<(), io::Error> {
             thread::sleep(SENSOR_REFRESH_DELAY);
         }
     });
+
+    // Initialize terminal app
+    let stdout = io::stdout().into_raw_mode()?;
+    let backend = TermionBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
+    // Prepare terminal
+    terminal.clear().unwrap();
+    terminal.hide_cursor().unwrap();
 
     // Render loop
     while run_render_loop.load(Ordering::SeqCst) {
