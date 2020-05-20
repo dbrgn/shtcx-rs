@@ -1,7 +1,7 @@
 //! Monitor an SHTC3 sensor on Linux in the terminal.
 
 use std::collections::VecDeque;
-use std::io;
+use std::io::{self, Stdout};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -11,7 +11,7 @@ use linux_embedded_hal::{Delay, I2cdev};
 use shtcx::{self, PowerMode};
 use termion::event::Key;
 use termion::input::TermRead;
-use termion::raw::IntoRawMode;
+use termion::raw::{IntoRawMode, RawTerminal};
 use tui::backend::{Backend, TermionBackend};
 use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::style::{Color, Style};
@@ -148,65 +148,7 @@ fn main() -> Result<(), io::Error> {
 
     // Render loop
     while run_render_loop.load(Ordering::SeqCst) {
-        terminal
-            .draw(|mut f| {
-                let chunks = Layout::default()
-                    .direction(Direction::Vertical)
-                    .margin(1)
-                    .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
-                    .split(f.size());
-                let (temp_normal, temp_lowpwr, humi_normal, humi_lowpwr) = {
-                    let data = data.lock().unwrap();
-                    (
-                        data.temp_normal
-                            .iter()
-                            .rev()
-                            .enumerate()
-                            .map(|(i, x): (usize, &i32)| (i as f64, (*x as f64) / 1000.0))
-                            .collect::<Vec<_>>(),
-                        data.temp_lowpwr
-                            .iter()
-                            .rev()
-                            .enumerate()
-                            .map(|(i, x): (usize, &i32)| (i as f64, (*x as f64) / 1000.0))
-                            .collect::<Vec<_>>(),
-                        data.humi_normal
-                            .iter()
-                            .rev()
-                            .enumerate()
-                            .map(|(i, x): (usize, &i32)| (i as f64, (*x as f64) / 1000.0))
-                            .collect::<Vec<_>>(),
-                        data.humi_lowpwr
-                            .iter()
-                            .rev()
-                            .enumerate()
-                            .map(|(i, x): (usize, &i32)| (i as f64, (*x as f64) / 1000.0))
-                            .collect::<Vec<_>>(),
-                    )
-                };
-                show_chart(
-                    "Temperature",
-                    (50.0, "50"),
-                    temp_normal.as_slice(),
-                    Color::Red,
-                    temp_lowpwr.as_slice(),
-                    Color::Magenta,
-                    &mut f,
-                    chunks[0],
-                );
-                show_chart(
-                    "Humidity",
-                    (100.0, "100"),
-                    humi_normal.as_slice(),
-                    Color::Blue,
-                    humi_lowpwr.as_slice(),
-                    Color::Cyan,
-                    &mut f,
-                    chunks[1],
-                );
-            })
-            .unwrap();
-
+        render(&mut terminal, &data);
         thread::sleep(UI_REFRESH_DELAY);
     }
 
@@ -215,4 +157,65 @@ fn main() -> Result<(), io::Error> {
     let _ = terminal.show_cursor();
 
     Ok(())
+}
+
+fn render(terminal: &mut Terminal<TermionBackend<RawTerminal<Stdout>>>, data: &Arc<Mutex<Data>>) {
+    terminal
+        .draw(|mut f| {
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .margin(1)
+                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+                .split(f.size());
+            let (temp_normal, temp_lowpwr, humi_normal, humi_lowpwr) = {
+                let data = data.lock().unwrap();
+                (
+                    data.temp_normal
+                        .iter()
+                        .rev()
+                        .enumerate()
+                        .map(|(i, x): (usize, &i32)| (i as f64, (*x as f64) / 1000.0))
+                        .collect::<Vec<_>>(),
+                    data.temp_lowpwr
+                        .iter()
+                        .rev()
+                        .enumerate()
+                        .map(|(i, x): (usize, &i32)| (i as f64, (*x as f64) / 1000.0))
+                        .collect::<Vec<_>>(),
+                    data.humi_normal
+                        .iter()
+                        .rev()
+                        .enumerate()
+                        .map(|(i, x): (usize, &i32)| (i as f64, (*x as f64) / 1000.0))
+                        .collect::<Vec<_>>(),
+                    data.humi_lowpwr
+                        .iter()
+                        .rev()
+                        .enumerate()
+                        .map(|(i, x): (usize, &i32)| (i as f64, (*x as f64) / 1000.0))
+                        .collect::<Vec<_>>(),
+                )
+            };
+            show_chart(
+                "Temperature",
+                (50.0, "50"),
+                temp_normal.as_slice(),
+                Color::Red,
+                temp_lowpwr.as_slice(),
+                Color::Magenta,
+                &mut f,
+                chunks[0],
+            );
+            show_chart(
+                "Humidity",
+                (100.0, "100"),
+                humi_normal.as_slice(),
+                Color::Blue,
+                humi_lowpwr.as_slice(),
+                Color::Cyan,
+                &mut f,
+                chunks[1],
+            );
+        })
+        .unwrap();
 }
