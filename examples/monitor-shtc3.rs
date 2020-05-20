@@ -22,74 +22,6 @@ const SENSOR_REFRESH_DELAY: Duration = Duration::from_millis(50);
 const UI_REFRESH_DELAY: Duration = Duration::from_millis(25);
 const DATA_CAPACITY: usize = 100;
 
-#[derive(Default)]
-struct Data {
-    capacity: usize,
-    temp_normal: VecDeque<i32>,
-    temp_lowpwr: VecDeque<i32>,
-    humi_normal: VecDeque<i32>,
-    humi_lowpwr: VecDeque<i32>,
-}
-
-impl Data {
-    fn new(capacity: usize) -> Self {
-        Self {
-            capacity,
-            ..Default::default()
-        }
-    }
-
-    /// Truncate data to max `capacity` datapoints.
-    fn truncate(&mut self) {
-        self.temp_normal.truncate(self.capacity);
-        self.temp_lowpwr.truncate(self.capacity);
-        self.humi_normal.truncate(self.capacity);
-        self.humi_lowpwr.truncate(self.capacity);
-    }
-}
-
-fn show_chart<B: Backend>(
-    title: &str,
-    max: (f64, &str),
-    data_normal: &[(f64, f64)],
-    color_normal: Color,
-    data_lowpwr: &[(f64, f64)],
-    color_lowpwr: Color,
-    frame: &mut Frame<B>,
-    area: Rect,
-) {
-    Chart::default()
-        .block(Block::default().title(title).borders(Borders::ALL))
-        .x_axis(
-            Axis::<&str>::default()
-                .title("X Axis")
-                .title_style(Style::default().fg(Color::Red))
-                .style(Style::default().fg(Color::White))
-                .bounds([0.0, DATA_CAPACITY as f64]),
-        )
-        .y_axis(
-            Axis::<&str>::default()
-                .title("Y Axis")
-                .title_style(Style::default().fg(Color::Red))
-                .style(Style::default().fg(Color::White))
-                .bounds([0.0, max.0])
-                .labels(&["0", max.1]),
-        )
-        .datasets(&[
-            Dataset::default()
-                .name("Low power mode")
-                .marker(Marker::Braille)
-                .style(Style::default().fg(color_lowpwr))
-                .data(&data_lowpwr),
-            Dataset::default()
-                .name("Normal mode")
-                .marker(Marker::Dot)
-                .style(Style::default().fg(color_normal))
-                .data(data_normal),
-        ])
-        .render(frame, area);
-}
-
 fn main() -> Result<(), io::Error> {
     // Initialize sensor driver
     let dev = I2cdev::new("/dev/i2c-1").unwrap();
@@ -157,6 +89,74 @@ fn main() -> Result<(), io::Error> {
     let _ = terminal.show_cursor();
 
     Ok(())
+}
+
+#[derive(Default)]
+struct Data {
+    capacity: usize,
+    temp_normal: VecDeque<i32>,
+    temp_lowpwr: VecDeque<i32>,
+    humi_normal: VecDeque<i32>,
+    humi_lowpwr: VecDeque<i32>,
+}
+
+impl Data {
+    fn new(capacity: usize) -> Self {
+        Self {
+            capacity,
+            ..Default::default()
+        }
+    }
+
+    /// Truncate data to max `capacity` datapoints.
+    fn truncate(&mut self) {
+        self.temp_normal.truncate(self.capacity);
+        self.temp_lowpwr.truncate(self.capacity);
+        self.humi_normal.truncate(self.capacity);
+        self.humi_lowpwr.truncate(self.capacity);
+    }
+}
+
+fn show_chart<B: Backend>(
+    title: &str,
+    max: (f64, &str),
+    data_normal: &[(f64, f64)],
+    color_normal: Color,
+    data_lowpwr: &[(f64, f64)],
+    color_lowpwr: Color,
+    frame: &mut Frame<B>,
+    area: Rect,
+) {
+    Chart::default()
+        .block(Block::default().title(title).borders(Borders::ALL))
+        .x_axis(
+            Axis::<&str>::default()
+                .title("X Axis")
+                .title_style(Style::default().fg(Color::Red))
+                .style(Style::default().fg(Color::White))
+                .bounds([0.0, DATA_CAPACITY as f64]),
+        )
+        .y_axis(
+            Axis::<&str>::default()
+                .title("Y Axis")
+                .title_style(Style::default().fg(Color::Red))
+                .style(Style::default().fg(Color::White))
+                .bounds([0.0, max.0])
+                .labels(&["0", max.1]),
+        )
+        .datasets(&[
+            Dataset::default()
+                .name("Low power mode")
+                .marker(Marker::Braille)
+                .style(Style::default().fg(color_lowpwr))
+                .data(&data_lowpwr),
+            Dataset::default()
+                .name("Normal mode")
+                .marker(Marker::Dot)
+                .style(Style::default().fg(color_normal))
+                .data(data_normal),
+        ])
+        .render(frame, area);
 }
 
 fn render(terminal: &mut Terminal<TermionBackend<RawTerminal<Stdout>>>, data: &Arc<Mutex<Data>>) {
