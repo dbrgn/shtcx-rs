@@ -298,11 +298,14 @@ pub struct ShtCx<S: ShtSensor, I2C> {
     address: u8,
 }
 
+/// ShtC1 sensor
+pub type ShtC1<I2C> = ShtCx<sensor_class::Sht1Gen, I2C>;
+
 /// Create a new instance of the driver for the SHTC1.
 ///
 /// See [ShtCx](struct.ShtCx.html) for detailed documentation of the available
 /// methods.
-pub fn shtc1<I2C>(i2c: I2C) -> ShtCx<sensor_class::Sht1Gen, I2C> {
+pub fn shtc1<I2C>(i2c: I2C) -> ShtC1<I2C> {
     ShtCx {
         sensor: PhantomData,
         i2c,
@@ -310,17 +313,23 @@ pub fn shtc1<I2C>(i2c: I2C) -> ShtCx<sensor_class::Sht1Gen, I2C> {
     }
 }
 
+/// ShtC3 sensor
+pub type ShtC3<I2C> = ShtCx<sensor_class::Sht2Gen, I2C>;
+
 /// Create a new instance of the driver for the SHTC3.
 ///
 /// See [ShtCx](struct.ShtCx.html) for detailed documentation of the available
 /// methods.
-pub fn shtc3<I2C>(i2c: I2C) -> ShtCx<sensor_class::Sht2Gen, I2C> {
+pub fn shtc3<I2C>(i2c: I2C) -> ShtC3<I2C> {
     ShtCx {
         sensor: PhantomData,
         i2c,
         address: 0x70,
     }
 }
+
+/// ShtW2 sensor
+pub type ShtW2<I2C> = ShtCx<sensor_class::Sht1Gen, I2C>;
 
 /// Create a new instance of the driver for the SHTW2.
 ///
@@ -329,7 +338,7 @@ pub fn shtc3<I2C>(i2c: I2C) -> ShtCx<sensor_class::Sht2Gen, I2C> {
 ///
 /// See [ShtCx](struct.ShtCx.html) for detailed documentation of the available
 /// methods.
-pub fn shtw2<I2C>(i2c: I2C, address: u8) -> ShtCx<sensor_class::Sht1Gen, I2C> {
+pub fn shtw2<I2C>(i2c: I2C, address: u8) -> ShtW2<I2C> {
     // Note: Internally, the SHTW2 is identical to the SHTC1, just with
     // different packaging.
     ShtCx {
