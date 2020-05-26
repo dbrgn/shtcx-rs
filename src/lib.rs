@@ -602,6 +602,9 @@ where
 /// This functionality is only present on some of the sensors (e.g. the SHTC3,
 /// but not the SHTC1).
 pub trait LowPower<E> {
+    /// Time the senor needs until it is ready after a wakeup call.
+    const WAKEUP_TIME_US: u16;
+
     /// Set sensor to sleep mode.
     ///
     /// When in sleep mode, the sensor consumes around 0.3-0.6 µA. It requires
@@ -610,6 +613,9 @@ pub trait LowPower<E> {
     fn sleep(&mut self) -> Result<(), Error<E>>;
 
     /// Wake up sensor from [sleep mode](#method.sleep).
+    fn start_wakeup(&mut self) -> Result<(), Error<E>>;
+
+    /// Wake up sensor from [sleep mode](#method.sleep) and wait until it is ready.
     fn wakeup(&mut self, delay: &mut impl DelayUs<u16>) -> Result<(), Error<E>>;
 }
 
@@ -619,14 +625,20 @@ macro_rules! impl_low_power {
         where
             I2C: Read<Error = E> + Write<Error = E>,
         {
+            // Table 5: 180-240 µs
+            const WAKEUP_TIME_US: u16 = 240;
+
             fn sleep(&mut self) -> Result<(), Error<E>> {
                 self.send_command(Command::Sleep)
             }
 
+            fn start_wakeup(&mut self) -> Result<(), Error<E>> {
+                self.send_command(Command::WakeUp)
+            }
+
             fn wakeup(&mut self, delay: &mut impl DelayUs<u16>) -> Result<(), Error<E>> {
-                self.send_command(Command::WakeUp)?;
-                // Table 5: 180-240 µs
-                delay.delay_us(240);
+                self.start_wakeup()?;
+                delay.delay_us(Self::WAKEUP_TIME_US);
                 Ok(())
             }
         }
