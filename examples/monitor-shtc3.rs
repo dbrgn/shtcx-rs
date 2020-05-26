@@ -93,7 +93,8 @@ fn show_chart<B: Backend>(
 fn main() -> Result<(), io::Error> {
     // Initialize sensor driver
     let dev = I2cdev::new("/dev/i2c-1").unwrap();
-    let mut sht = shtcx::shtc3(dev, Delay);
+    let mut sht = shtcx::shtc3(dev);
+    let mut delay = Delay;
 
     // Initialize terminal app
     let stdout = io::stdout().into_raw_mode()?;
@@ -125,8 +126,8 @@ fn main() -> Result<(), io::Error> {
     thread::spawn(move || {
         while run_measurements.load(Ordering::SeqCst) {
             // Do measurements
-            let normal = sht.measure(PowerMode::NormalMode).unwrap();
-            let lowpwr = sht.measure(PowerMode::LowPower).unwrap();
+            let normal = sht.measure(PowerMode::NormalMode, &mut delay).unwrap();
+            let lowpwr = sht.measure(PowerMode::LowPower, &mut delay).unwrap();
 
             // Update data buffer
             let mut data = measurement_data.lock().unwrap();
