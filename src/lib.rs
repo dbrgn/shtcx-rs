@@ -602,7 +602,7 @@ where
 /// This functionality is only present on some of the sensors (e.g. the SHTC3,
 /// but not the SHTC1).
 pub trait LowPower<E> {
-    /// Time the senor needs until it is ready after a wakeup call.
+    /// Time the sensor needs until it is ready after a wakeup call.
     const WAKEUP_TIME_US: u16;
 
     /// Set sensor to sleep mode.
