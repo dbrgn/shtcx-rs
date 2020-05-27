@@ -17,9 +17,14 @@
 //!
 //! ## Blocking / Non-Blocking Modes
 //!
-//! This driver currently uses only blocking calls. Non-blocking measurements may
-//! be added in the future. Clock stretching is not implemented and probably won't
-//! be.
+//! This driver provides blocking and non-blocking calls. The blocking calls delay the execution
+//! until the measurement is done and return the results. The non-blocking ones just start the
+//! measurement and allow the application code to do other stuff and get the results afterwards.
+//!
+//! ## Clock Stretching
+//!
+//! While the sensor would provide measurement commands with clock stretching to indicate when the
+//! measurement is done, this is not implemented and probably won't be.
 //!
 //! ## Examples
 //!
