@@ -412,9 +412,10 @@ impl MeasurementDuration for sensor_class::ShtGeneric {
     }
 }
 
+/// General functions.
 impl<S, I2C, E> ShtCx<S, I2C>
 where
-    S: ShtSensor + MeasurementDuration,
+    S: ShtSensor,
     I2C: Read<Error = E> + Write<Error = E>,
 {
     /// Destroy driver instance, return I²C bus instance.
@@ -497,7 +498,7 @@ where
 /// Asynchronous functions for starting / reading measurements.
 impl<S, I2C, E> ShtCx<S, I2C>
 where
-    S: ShtSensor + MeasurementDuration,
+    S: ShtSensor,
     I2C: Read<Error = E> + Write<Error = E>,
 {
     /// Start a measurement with the specified measurement order and write the
