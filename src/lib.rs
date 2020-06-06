@@ -257,20 +257,12 @@ impl Command {
     }
 }
 
-/// This non-public module is used to wrap public traits used inside the crate,
-/// which should not be public to the user.
-///
-/// This helps getting around the "can't leak private trait" error message.
-mod somewhat_private_traits {
-    use super::PowerMode;
-
-    pub trait MeasurementDuration {
-        /// Return the max measurement duration (depending on the mode) in
-        /// microseconds.
-        fn max_measurement_duration(mode: PowerMode) -> u16;
-    }
+/// Determine the max measurement duration (according to the datasheet).
+pub trait MeasurementDuration {
+    /// Return the max measurement duration (depending on the mode) in
+    /// microseconds.
+    fn max_measurement_duration(mode: PowerMode) -> u16;
 }
-use somewhat_private_traits::*;
 
 /// Type parameters for the different sensor classes.
 pub mod sensor_class {
