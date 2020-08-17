@@ -257,20 +257,12 @@ impl Command {
     }
 }
 
-/// This non-public module is used to wrap public traits used inside the crate,
-/// which should not be public to the user.
-///
-/// This helps getting around the "can't leak private trait" error message.
-mod somewhat_private_traits {
-    use super::PowerMode;
-
-    pub trait MeasurementDuration {
-        /// Return the max measurement duration (depending on the mode) in
-        /// microseconds.
-        fn max_measurement_duration(mode: PowerMode) -> u16;
-    }
+/// Determine the maximum measurement duration (according to the datasheet).
+pub trait MeasurementDuration {
+    /// Return the maximum measurement duration (depending on the mode) in
+    /// microseconds.
+    fn max_measurement_duration(mode: PowerMode) -> u16;
 }
-use somewhat_private_traits::*;
 
 /// Type parameters for the different sensor classes.
 pub mod sensor_class {
@@ -366,9 +358,9 @@ pub fn generic<I2C>(i2c: I2C, address: u8) -> ShtCx<sensor_class::ShtGeneric, I2
 }
 
 impl MeasurementDuration for sensor_class::Sht1Gen {
-    /// Return the max measurement duration in microseconds.
+    /// Return the maximum measurement duration in microseconds.
     ///
-    /// Max measurement duration:
+    /// Maximum measurement duration:
     /// - Normal mode: 14.4 ms (SHTC1/SHTW2 datasheet 3.1)
     /// - Low power mode: 0.94 us (SHTC1/SHTW2 low power application note)
     fn max_measurement_duration(mode: PowerMode) -> u16 {
@@ -380,10 +372,10 @@ impl MeasurementDuration for sensor_class::Sht1Gen {
 }
 
 impl MeasurementDuration for sensor_class::Sht2Gen {
-    /// Return the max measurement duration (depending on the mode) in
+    /// Return the maximum measurement duration (depending on the mode) in
     /// microseconds.
     ///
-    /// Max measurement duration (SHTC3 datasheet 3.1):
+    /// Maximum measurement duration (SHTC3 datasheet 3.1):
     /// - Normal mode: 12.1 ms
     /// - Low power mode: 0.8 ms
     fn max_measurement_duration(mode: PowerMode) -> u16 {
@@ -395,13 +387,13 @@ impl MeasurementDuration for sensor_class::Sht2Gen {
 }
 
 impl MeasurementDuration for sensor_class::ShtGeneric {
-    /// Return the max measurement duration (depending on the mode) in
+    /// Return the maximum measurement duration (depending on the mode) in
     /// microseconds.
     ///
     /// Because this duration should work for all sensor models, it chooses the
-    /// max duration of all models.
+    /// maximum duration of all models.
     ///
-    /// Max measurement duration:
+    /// Maximum measurement duration:
     /// - Normal mode: 14.4 ms (SHTC1, SHTW2)
     /// - Low power mode: 0.94 ms (SHTC1, SHTW2)
     fn max_measurement_duration(mode: PowerMode) -> u16 {
@@ -410,6 +402,24 @@ impl MeasurementDuration for sensor_class::ShtGeneric {
             PowerMode::LowPower => 940,
         }
     }
+}
+
+/// Shortcut function to get the maximum measurement duration of a [`ShtCx`]
+/// instance.
+///
+/// This allows you to get the maximum measurement duration for a sensor
+/// instance without knowing its sensor class type parameter.
+///
+/// See [`MeasurementDuration`] docs for more information.
+///
+/// [`ShtCx`]: struct.ShtCx.html
+/// [`MeasurementDuration`]: trait.MeasurementDuration.html
+#[inline(always)]
+pub fn max_measurement_duration<S, I2C>(_: &ShtCx<S, I2C>, mode: PowerMode) -> u16
+where
+    S: ShtSensor + MeasurementDuration,
+{
+    S::max_measurement_duration(mode)
 }
 
 /// General functions.
@@ -969,6 +979,21 @@ mod tests {
             let mut sht = shtc3(mock);
             sht.reset(&mut NoopDelay).unwrap();
             sht.destroy().done();
+        }
+    }
+
+    mod max_measurement_duration {
+        use super::*;
+
+        #[test]
+        fn shortcut_function() {
+            let c1 = shtc1(I2cMock::new(&[]));
+            let c3 = shtc3(I2cMock::new(&[]));
+
+            assert_eq!(max_measurement_duration(&c1, PowerMode::NormalMode), 14400);
+            assert_eq!(max_measurement_duration(&c1, PowerMode::LowPower), 940);
+            assert_eq!(max_measurement_duration(&c3, PowerMode::NormalMode), 12100);
+            assert_eq!(max_measurement_duration(&c3, PowerMode::LowPower), 800);
         }
     }
 }
