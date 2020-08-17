@@ -257,9 +257,9 @@ impl Command {
     }
 }
 
-/// Determine the max measurement duration (according to the datasheet).
+/// Determine the maximum measurement duration (according to the datasheet).
 pub trait MeasurementDuration {
-    /// Return the max measurement duration (depending on the mode) in
+    /// Return the maximum measurement duration (depending on the mode) in
     /// microseconds.
     fn max_measurement_duration(mode: PowerMode) -> u16;
 }
@@ -358,9 +358,9 @@ pub fn generic<I2C>(i2c: I2C, address: u8) -> ShtCx<sensor_class::ShtGeneric, I2
 }
 
 impl MeasurementDuration for sensor_class::Sht1Gen {
-    /// Return the max measurement duration in microseconds.
+    /// Return the maximum measurement duration in microseconds.
     ///
-    /// Max measurement duration:
+    /// Maximum measurement duration:
     /// - Normal mode: 14.4 ms (SHTC1/SHTW2 datasheet 3.1)
     /// - Low power mode: 0.94 us (SHTC1/SHTW2 low power application note)
     fn max_measurement_duration(mode: PowerMode) -> u16 {
@@ -372,10 +372,10 @@ impl MeasurementDuration for sensor_class::Sht1Gen {
 }
 
 impl MeasurementDuration for sensor_class::Sht2Gen {
-    /// Return the max measurement duration (depending on the mode) in
+    /// Return the maximum measurement duration (depending on the mode) in
     /// microseconds.
     ///
-    /// Max measurement duration (SHTC3 datasheet 3.1):
+    /// Maximum measurement duration (SHTC3 datasheet 3.1):
     /// - Normal mode: 12.1 ms
     /// - Low power mode: 0.8 ms
     fn max_measurement_duration(mode: PowerMode) -> u16 {
@@ -387,13 +387,13 @@ impl MeasurementDuration for sensor_class::Sht2Gen {
 }
 
 impl MeasurementDuration for sensor_class::ShtGeneric {
-    /// Return the max measurement duration (depending on the mode) in
+    /// Return the maximum measurement duration (depending on the mode) in
     /// microseconds.
     ///
     /// Because this duration should work for all sensor models, it chooses the
-    /// max duration of all models.
+    /// maximum duration of all models.
     ///
-    /// Max measurement duration:
+    /// Maximum measurement duration:
     /// - Normal mode: 14.4 ms (SHTC1, SHTW2)
     /// - Low power mode: 0.94 ms (SHTC1, SHTW2)
     fn max_measurement_duration(mode: PowerMode) -> u16 {
@@ -404,11 +404,11 @@ impl MeasurementDuration for sensor_class::ShtGeneric {
     }
 }
 
-/// Shortcut function to get the max measurement duration of a [`ShtCx`]
+/// Shortcut function to get the maximum measurement duration of a [`ShtCx`]
 /// instance.
 ///
-/// This allows you to get the max measurement duration for a sensor instance
-/// without knowing its sensor class type parameter.
+/// This allows you to get the maximum measurement duration for a sensor
+/// instance without knowing its sensor class type parameter.
 ///
 /// See [`MeasurementDuration`] docs for more information.
 ///
