@@ -288,7 +288,7 @@ impl ShtSensor for sensor_class::ShtGeneric {}
 #[derive(Debug, Default)]
 pub struct ShtCx<S: ShtSensor, I2C> {
     /// The chosen target sensor.
-    sensor: PhantomData<*const S>,
+    sensor: PhantomData<S>,
     /// The concrete I²C device implementation.
     i2c: I2C,
     /// The I²C device address.
