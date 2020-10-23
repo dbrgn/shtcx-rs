@@ -1,8 +1,8 @@
 [package]
 name = "shtcx"
-version = "0.9.0"
+version = "0.10.0"
 edition = "2018"
-authors = ["Danilo Bargen <mail@dbrgn.ch>"]
+authors = ["Danilo Bargen <mail@dbrgn.ch>", "Raphael Nestler <raphael.nestler@gmail.com>"]
 documentation = "https://docs.rs/shtcx"
 repository = "https://github.com/dbrgn/shtcx-rs"
 license = "MIT OR Apache-2.0"
