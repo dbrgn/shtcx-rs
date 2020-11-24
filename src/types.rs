@@ -15,6 +15,27 @@ pub struct Measurement {
     pub humidity: Humidity,
 }
 
+/// A combined raw temperature / humidity measurement.
+///
+/// The raw values are of type u16. They require a conversion formula for
+/// conversion to a temperature / humidity value (see datasheet).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RawMeasurement {
+    /// The measured temperature (raw value).
+    pub temperature: u16,
+    /// The measured humidity (raw value).
+    pub humidity: u16,
+}
+
+impl From<RawMeasurement> for Measurement {
+    fn from(other: RawMeasurement) -> Self {
+        Self {
+            temperature: Temperature::from_raw(other.temperature),
+            humidity: Humidity::from_raw(other.humidity),
+        }
+    }
+}
+
 impl Temperature {
     /// Create a new `Temperature` from a raw measurement result.
     pub(crate) fn from_raw(raw: u16) -> Self {
@@ -119,5 +140,27 @@ mod tests {
         let humi = Humidity(65432);
         assert_eq!(humi.as_millipercent(), 65432);
         assert_eq!(humi.as_percent(), 65.432);
+    }
+
+    #[test]
+    fn measurement_from_into() {
+        // Datasheet setion 5.11 "Conversion of Sensor Output"
+        let raw = RawMeasurement {
+            temperature: ((0b0110_0100 as u16) << 8) | 0b1000_1011,
+            humidity: ((0b1010_0001 as u16) << 8) | 0b0011_0011,
+        };
+
+        // std::convert::From
+        let measurement1 = Measurement::from(raw.clone());
+        assert_eq!(measurement1.temperature.0, 23730);
+        assert_eq!(measurement1.humidity.0, 62968);
+
+        // std::convert::Into
+        let measurement2: Measurement = raw.into();
+        assert_eq!(measurement2.temperature.0, 23730);
+        assert_eq!(measurement2.humidity.0, 62968);
+
+        // std::cmp::PartialEq
+        assert_eq!(measurement1, measurement2);
     }
 }
