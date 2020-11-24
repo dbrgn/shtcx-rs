@@ -38,7 +38,7 @@ impl From<RawMeasurement> for Measurement {
 
 impl Temperature {
     /// Create a new `Temperature` from a raw measurement result.
-    pub(crate) fn from_raw(raw: u16) -> Self {
+    pub fn from_raw(raw: u16) -> Self {
         Self(convert_temperature(raw))
     }
 
@@ -55,7 +55,7 @@ impl Temperature {
 
 impl Humidity {
     /// Create a new `Humidity` from a raw measurement result.
-    pub(crate) fn from_raw(raw: u16) -> Self {
+    pub fn from_raw(raw: u16) -> Self {
         Self(convert_humidity(raw))
     }
 
