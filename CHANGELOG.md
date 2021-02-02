@@ -9,6 +9,7 @@ This project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html
 
 - [add] Allow reading raw measurement data (#28)
 - [add] Temperature/Humidity: Expose `from_raw` constructor (#28)
+- [add] Impl `Copy` for all measurement data types (#28)
 
 ## 0.10.0 - 2020-10-23
 

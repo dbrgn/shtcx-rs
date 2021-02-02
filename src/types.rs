@@ -1,13 +1,13 @@
 /// A temperature measurement.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Temperature(i32);
 
 /// A humidity measurement.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Humidity(i32);
 
 /// A combined temperature / humidity measurement.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Measurement {
     /// The measured temperature.
     pub temperature: Temperature,
@@ -19,7 +19,7 @@ pub struct Measurement {
 ///
 /// The raw values are of type u16. They require a conversion formula for
 /// conversion to a temperature / humidity value (see datasheet).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct RawMeasurement {
     /// The measured temperature (raw value).
     pub temperature: u16,
@@ -151,7 +151,7 @@ mod tests {
         };
 
         // std::convert::From
-        let measurement1 = Measurement::from(raw.clone());
+        let measurement1 = Measurement::from(raw);
         assert_eq!(measurement1.temperature.0, 23730);
         assert_eq!(measurement1.humidity.0, 62968);
 
