@@ -65,7 +65,7 @@
 //! let raw_id = sht.raw_id_register().unwrap();
 //! ```
 //!
-//! ### Measurements
+//! ### Measurements (Blocking)
 //!
 //! For measuring your environment, you can either measure just temperature,
 //! just humidity, or both:
@@ -100,6 +100,23 @@
 //! # let mut sht = shtcx::shtc3(I2cdev::new("/dev/i2c-1").unwrap());
 //! let mut delay = Delay;
 //! let measurement = sht.measure(PowerMode::LowPower, &mut delay).unwrap();
+//! ```
+//!
+//! ### Measurements (Non-Blocking)
+//!
+//! If you want to avoid blocking measurements, you can use the non-blocking
+//! commands instead. You are, however, responsible for ensuring the correct
+//! timing of the calls.
+//!
+//! ```no_run
+//! # use linux_embedded_hal::I2cdev;
+//! # use shtcx;
+//! use shtcx::PowerMode;
+//! # let mut sht = shtcx::shtc3(I2cdev::new("/dev/i2c-1").unwrap());
+//!
+//! sht.start_measurement(PowerMode::NormalMode).unwrap();
+//! // Wait for at least `max_measurement_duration(&sht, PowerMode::NormalMode)` µs
+//! let result = sht.get_measurement_result().unwrap();
 //! ```
 //!
 //! ### Low Power Mode
@@ -405,7 +422,7 @@ impl MeasurementDuration for sensor_class::ShtGeneric {
 }
 
 /// Shortcut function to get the maximum measurement duration of a [`ShtCx`]
-/// instance.
+/// instance in microseconds.
 ///
 /// This allows you to get the maximum measurement duration for a sensor
 /// instance without knowing its sensor class type parameter.
@@ -505,7 +522,7 @@ where
     }
 }
 
-/// Asynchronous functions for starting / reading measurements.
+/// Non-blocking functions for starting / reading measurements.
 impl<S, I2C, E> ShtCx<S, I2C>
 where
     S: ShtSensor,
@@ -525,12 +542,12 @@ where
         self.send_command(Command::Measure { power_mode, order })
     }
 
-    /// Start a temperature / humidity measurement.
+    /// Start a combined temperature / humidity measurement.
     pub fn start_measurement(&mut self, mode: PowerMode) -> Result<(), Error<E>> {
         self.start_measure_partial(mode, MeasurementOrder::TemperatureFirst)
     }
 
-    /// Read the result of a temperature / humidity measurement.
+    /// Read the result of a combined temperature / humidity measurement.
     pub fn get_measurement_result(&mut self) -> Result<Measurement, Error<E>> {
         let mut buf = [0; 6];
         self.read_with_crc(&mut buf)?;
