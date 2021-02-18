@@ -119,6 +119,16 @@
 //! let result = sht.get_measurement_result().unwrap();
 //! ```
 //!
+//! In non-blocking mode, if desired, you can also read the raw 16-bit
+//! measurement results from the sensor by using the following two methods
+//! instead:
+//!
+//! - [`get_raw_measurement_result`](crate::ShtCx::get_raw_measurement_result())
+//! - [`get_raw_partial_measurement_result`](crate::ShtCx::get_raw_partial_measurement_result())
+//!
+//! The raw values are of type u16. They require a conversion formula for
+//! conversion to a temperature / humidity value (see datasheet).
+//!
 //! ### Low Power Mode
 //!
 //! Some of the sensors (e.g. the SHTC3, but not the SHTC1) support a low power
@@ -547,26 +557,9 @@ where
         self.start_measure_partial(mode, MeasurementOrder::TemperatureFirst)
     }
 
-    /// Read the result of a combined temperature / humidity measurement.
-    pub fn get_measurement_result(&mut self) -> Result<Measurement, Error<E>> {
-        let mut buf = [0; 6];
-        self.read_with_crc(&mut buf)?;
-        Ok(Measurement {
-            temperature: Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])),
-            humidity: Humidity::from_raw(u16::from_be_bytes([buf[3], buf[4]])),
-        })
-    }
-
     /// Start a temperature measurement.
     pub fn start_temperature_measurement(&mut self, mode: PowerMode) -> Result<(), Error<E>> {
         self.start_measure_partial(mode, MeasurementOrder::TemperatureFirst)
-    }
-
-    /// Read the result of a temperature measurement.
-    pub fn get_temperature_measurement_result(&mut self) -> Result<Temperature, Error<E>> {
-        let mut buf = [0; 3];
-        self.read_with_crc(&mut buf)?;
-        Ok(Temperature::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
     }
 
     /// Start a humidity measurement.
@@ -574,11 +567,41 @@ where
         self.start_measure_partial(mode, MeasurementOrder::HumidityFirst)
     }
 
+    /// Read the result of a temperature / humidity measurement.
+    pub fn get_measurement_result(&mut self) -> Result<Measurement, Error<E>> {
+        let raw = self.get_raw_measurement_result()?;
+        Ok(raw.into())
+    }
+
+    /// Read the result of a temperature measurement.
+    pub fn get_temperature_measurement_result(&mut self) -> Result<Temperature, Error<E>> {
+        let raw = self.get_raw_partial_measurement_result()?;
+        Ok(Temperature::from_raw(raw))
+    }
+
     /// Read the result of a humidity measurement.
     pub fn get_humidity_measurement_result(&mut self) -> Result<Humidity, Error<E>> {
+        let raw = self.get_raw_partial_measurement_result()?;
+        Ok(Humidity::from_raw(raw))
+    }
+
+    /// Read the raw result of a combined temperature / humidity measurement.
+    pub fn get_raw_measurement_result(&mut self) -> Result<RawMeasurement, Error<E>> {
+        let mut buf = [0; 6];
+        self.read_with_crc(&mut buf)?;
+        Ok(RawMeasurement {
+            temperature: u16::from_be_bytes([buf[0], buf[1]]),
+            humidity: u16::from_be_bytes([buf[3], buf[4]]),
+        })
+    }
+
+    /// Read the raw result of a partial temperature or humidity measurement.
+    ///
+    /// Return the raw 3-byte buffer (after validating CRC).
+    pub fn get_raw_partial_measurement_result(&mut self) -> Result<u16, Error<E>> {
         let mut buf = [0; 3];
         self.read_with_crc(&mut buf)?;
-        Ok(Humidity::from_raw(u16::from_be_bytes([buf[0], buf[1]])))
+        Ok(u16::from_be_bytes([buf[0], buf[1]]))
     }
 }
 
