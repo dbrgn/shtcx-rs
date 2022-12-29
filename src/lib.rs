@@ -33,7 +33,7 @@
 //! the `monitor-<target>` example implements a terminal based real-time
 //! graphical temperature/humidity monitoring tool.
 //!
-//! ![gif](https://raw.githubusercontent.com/dbrgn/shtcx-rs/master/monitor.gif)
+//! ![gif](https://raw.githubusercontent.com/dbrgn/shtcx-rs/main/monitor.gif)
 //!
 //! ## Usage
 //!
