@@ -1,6 +1,6 @@
 [package]
 name = "shtcx"
-version = "0.10.0"
+version = "0.11.0"
 edition = "2021"
 authors = ["Danilo Bargen <mail@dbrgn.ch>", "Raphael Nestler <raphael.nestler@gmail.com>"]
 documentation = "https://docs.rs/shtcx"

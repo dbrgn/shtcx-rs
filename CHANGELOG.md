@@ -5,11 +5,13 @@ All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 
-## Unreleased
+## 0.11.0 - 2022-12-29
 
 - [add] Allow reading raw measurement data (#28)
 - [add] Temperature/Humidity: Expose `from_raw` constructor (#28)
 - [add] Impl `Copy` for all measurement data types (#28)
+- [change] Switch to Rust 2021
+
 
 ## 0.10.0 - 2020-10-23
 
