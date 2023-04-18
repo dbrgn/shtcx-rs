@@ -513,7 +513,7 @@ where
     pub fn device_identifier(&mut self) -> Result<u8, Error<E>> {
         let ident = self.raw_id_register()?;
         let lsb = (ident & 0b0011_1111) as u8;
-        let msb = ((ident & 0b00001000_00000000) >> 5) as u8;
+        let msb = ((ident & 0b0000_1000_0000_0000) >> 5) as u8;
         Ok(lsb | msb)
     }
 
