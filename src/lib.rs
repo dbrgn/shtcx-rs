@@ -490,8 +490,8 @@ where
     /// Note: This method will consider every third byte a checksum byte. If
     /// the buffer size is not a multiple of 3, then not all data will be
     /// validated.
-    fn read_with_crc(&mut self, mut buf: &mut [u8]) -> Result<(), Error<E>> {
-        self.i2c.read(self.address, &mut buf).map_err(Error::I2c)?;
+    fn read_with_crc(&mut self, buf: &mut [u8]) -> Result<(), Error<E>> {
+        self.i2c.read(self.address, buf).map_err(Error::I2c)?;
         self.validate_crc(buf)
     }
 
