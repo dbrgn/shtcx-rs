@@ -490,8 +490,8 @@ where
     /// Note: This method will consider every third byte a checksum byte. If
     /// the buffer size is not a multiple of 3, then not all data will be
     /// validated.
-    fn read_with_crc(&mut self, mut buf: &mut [u8]) -> Result<(), Error<E>> {
-        self.i2c.read(self.address, &mut buf).map_err(Error::I2c)?;
+    fn read_with_crc(&mut self, buf: &mut [u8]) -> Result<(), Error<E>> {
+        self.i2c.read(self.address, buf).map_err(Error::I2c)?;
         self.validate_crc(buf)
     }
 
@@ -513,7 +513,7 @@ where
     pub fn device_identifier(&mut self) -> Result<u8, Error<E>> {
         let ident = self.raw_id_register()?;
         let lsb = (ident & 0b0011_1111) as u8;
-        let msb = ((ident & 0b00001000_00000000) >> 5) as u8;
+        let msb = ((ident & 0b0000_1000_0000_0000) >> 5) as u8;
         Ok(lsb | msb)
     }
 
