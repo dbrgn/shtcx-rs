@@ -1,14 +1,23 @@
 [package]
 name = "shtcx"
-version = "0.11.0"
+version = "0.12.0"
 edition = "2021"
-authors = ["Danilo Bargen <mail@dbrgn.ch>", "Raphael Nestler <raphael.nestler@gmail.com>"]
+authors = [
+    "Danilo Bargen <mail@dbrgn.ch>",
+    "Raphael Nestler <raphael.nestler@gmail.com>",
+]
 documentation = "https://docs.rs/shtcx"
 repository = "https://github.com/dbrgn/shtcx-rs"
 license = "MIT OR Apache-2.0"
 description = "Platform agnostic Rust driver for the Sensirion SHTCx series temperature/humidity sensors."
 readme = "README.md"
-keywords = ["shtcx", "sensirion", "temperature", "humidity", "embedded-hal-driver"]
+keywords = [
+    "shtcx",
+    "sensirion",
+    "temperature",
+    "humidity",
+    "embedded-hal-driver",
+]
 categories = ["embedded", "hardware-support", "no-std"]
 include = [
     "**/*.rs",
@@ -23,7 +32,7 @@ include = [
 default = []
 
 [dependencies]
-embedded-hal = "0.2"
+embedded-hal = "1.0.0-rc.1"
 
 [dev-dependencies]
 embedded-hal-mock = "0.9.0"

@@ -194,8 +194,8 @@ mod types;
 
 use core::marker::PhantomData;
 
-use embedded_hal::blocking::delay::DelayUs;
-use embedded_hal::blocking::i2c::{Read, Write};
+use embedded_hal::delay::DelayUs;
+use embedded_hal::i2c::{I2c, SevenBitAddress};
 
 use crc::crc8;
 pub use types::*;
@@ -237,6 +237,11 @@ pub enum Error<E> {
     I2c(E),
     /// CRC checksum validation failed
     Crc,
+}
+impl<E> From<E> for Error<E> {
+    fn from(other: E) -> Self {
+        Error::I2c(other)
+    }
 }
 
 /// I²C commands sent to the sensor.
@@ -288,7 +293,7 @@ impl Command {
 pub trait MeasurementDuration {
     /// Return the maximum measurement duration (depending on the mode) in
     /// microseconds.
-    fn max_measurement_duration(mode: PowerMode) -> u16;
+    fn max_measurement_duration(mode: PowerMode) -> u32;
 }
 
 /// Type parameters for the different sensor classes.
@@ -390,7 +395,7 @@ impl MeasurementDuration for sensor_class::Sht1Gen {
     /// Maximum measurement duration:
     /// - Normal mode: 14.4 ms (SHTC1/SHTW2 datasheet 3.1)
     /// - Low power mode: 0.94 us (SHTC1/SHTW2 low power application note)
-    fn max_measurement_duration(mode: PowerMode) -> u16 {
+    fn max_measurement_duration(mode: PowerMode) -> u32 {
         match mode {
             PowerMode::NormalMode => 14400,
             PowerMode::LowPower => 940,
@@ -405,7 +410,7 @@ impl MeasurementDuration for sensor_class::Sht2Gen {
     /// Maximum measurement duration (SHTC3 datasheet 3.1):
     /// - Normal mode: 12.1 ms
     /// - Low power mode: 0.8 ms
-    fn max_measurement_duration(mode: PowerMode) -> u16 {
+    fn max_measurement_duration(mode: PowerMode) -> u32 {
         match mode {
             PowerMode::NormalMode => 12100,
             PowerMode::LowPower => 800,
@@ -423,7 +428,7 @@ impl MeasurementDuration for sensor_class::ShtGeneric {
     /// Maximum measurement duration:
     /// - Normal mode: 14.4 ms (SHTC1, SHTW2)
     /// - Low power mode: 0.94 ms (SHTC1, SHTW2)
-    fn max_measurement_duration(mode: PowerMode) -> u16 {
+    fn max_measurement_duration(mode: PowerMode) -> u32 {
         match mode {
             PowerMode::NormalMode => 14400,
             PowerMode::LowPower => 940,
@@ -442,7 +447,7 @@ impl MeasurementDuration for sensor_class::ShtGeneric {
 /// [`ShtCx`]: struct.ShtCx.html
 /// [`MeasurementDuration`]: trait.MeasurementDuration.html
 #[inline(always)]
-pub fn max_measurement_duration<S, I2C>(_: &ShtCx<S, I2C>, mode: PowerMode) -> u16
+pub fn max_measurement_duration<S, I2C>(_: &ShtCx<S, I2C>, mode: PowerMode) -> u32
 where
     S: ShtSensor + MeasurementDuration,
 {
@@ -450,10 +455,11 @@ where
 }
 
 /// General functions.
-impl<S, I2C, E> ShtCx<S, I2C>
+impl<S, I2C> ShtCx<S, I2C>
 where
     S: ShtSensor,
-    I2C: Read<Error = E> + Write<Error = E>,
+    I2C: I2c<SevenBitAddress>,
+    I2C::Error: Into<Error<I2C::Error>>,
 {
     /// Destroy driver instance, return I²C bus instance.
     pub fn destroy(self) -> I2C {
@@ -461,7 +467,7 @@ where
     }
 
     /// Write an I²C command to the sensor.
-    fn send_command(&mut self, command: Command) -> Result<(), Error<E>> {
+    fn send_command(&mut self, command: Command) -> Result<(), Error<I2C::Error>> {
         self.i2c
             .write(self.address, &command.as_bytes())
             .map_err(Error::I2c)
@@ -474,7 +480,7 @@ where
     /// Note: This method will consider every third byte a checksum byte. If
     /// the buffer size is not a multiple of 3, then not all data will be
     /// validated.
-    fn validate_crc(&self, buf: &[u8]) -> Result<(), Error<E>> {
+    fn validate_crc(&self, buf: &[u8]) -> Result<(), Error<I2C::Error>> {
         for chunk in buf.chunks(3) {
             if chunk.len() == 3 && crc8(&[chunk[0], chunk[1]]) != chunk[2] {
                 return Err(Error::Crc);
@@ -490,13 +496,13 @@ where
     /// Note: This method will consider every third byte a checksum byte. If
     /// the buffer size is not a multiple of 3, then not all data will be
     /// validated.
-    fn read_with_crc(&mut self, buf: &mut [u8]) -> Result<(), Error<E>> {
+    fn read_with_crc(&mut self, buf: &mut [u8]) -> Result<(), Error<I2C::Error>> {
         self.i2c.read(self.address, buf).map_err(Error::I2c)?;
         self.validate_crc(buf)
     }
 
     /// Return the raw ID register.
-    pub fn raw_id_register(&mut self) -> Result<u16, Error<E>> {
+    pub fn raw_id_register(&mut self) -> Result<u16, Error<I2C::Error>> {
         // Request serial number
         self.send_command(Command::ReadIdRegister)?;
 
@@ -510,7 +516,7 @@ where
     /// Return the 7-bit device identifier.
     ///
     /// Should be 0x47 (71) for the SHTC3 and 0x07 (7) for the SHTC1.
-    pub fn device_identifier(&mut self) -> Result<u8, Error<E>> {
+    pub fn device_identifier(&mut self) -> Result<u8, Error<I2C::Error>> {
         let ident = self.raw_id_register()?;
         let lsb = (ident & 0b0011_1111) as u8;
         let msb = ((ident & 0b0000_1000_0000_0000) >> 5) as u8;
@@ -524,7 +530,7 @@ where
     /// in its idle state (i.e. if no measurement is in progress) the soft
     /// reset command can be sent. This triggers the sensor to reset all
     /// internal state machines and reload calibration data from the memory.
-    pub fn reset(&mut self, delay: &mut impl DelayUs<u16>) -> Result<(), Error<E>> {
+    pub fn reset(&mut self, delay: &mut impl DelayUs) -> Result<(), Error<I2C::Error>> {
         self.send_command(Command::SoftwareReset)?;
         // Table 5: 180-240 µs
         delay.delay_us(240);
@@ -533,10 +539,11 @@ where
 }
 
 /// Non-blocking functions for starting / reading measurements.
-impl<S, I2C, E> ShtCx<S, I2C>
+impl<S, I2C> ShtCx<S, I2C>
 where
     S: ShtSensor,
-    I2C: Read<Error = E> + Write<Error = E>,
+    I2C: I2c<SevenBitAddress>,
+    I2C::Error: Into<Error<I2C::Error>>,
 {
     /// Start a measurement with the specified measurement order and write the
     /// result into the provided buffer.
@@ -547,46 +554,49 @@ where
         &mut self,
         power_mode: PowerMode,
         order: MeasurementOrder,
-    ) -> Result<(), Error<E>> {
+    ) -> Result<(), Error<I2C::Error>> {
         // Request measurement
         self.send_command(Command::Measure { power_mode, order })
     }
 
     /// Start a combined temperature / humidity measurement.
-    pub fn start_measurement(&mut self, mode: PowerMode) -> Result<(), Error<E>> {
+    pub fn start_measurement(&mut self, mode: PowerMode) -> Result<(), Error<I2C::Error>> {
         self.start_measure_partial(mode, MeasurementOrder::TemperatureFirst)
     }
 
     /// Start a temperature measurement.
-    pub fn start_temperature_measurement(&mut self, mode: PowerMode) -> Result<(), Error<E>> {
+    pub fn start_temperature_measurement(
+        &mut self,
+        mode: PowerMode,
+    ) -> Result<(), Error<I2C::Error>> {
         self.start_measure_partial(mode, MeasurementOrder::TemperatureFirst)
     }
 
     /// Start a humidity measurement.
-    pub fn start_humidity_measurement(&mut self, mode: PowerMode) -> Result<(), Error<E>> {
+    pub fn start_humidity_measurement(&mut self, mode: PowerMode) -> Result<(), Error<I2C::Error>> {
         self.start_measure_partial(mode, MeasurementOrder::HumidityFirst)
     }
 
     /// Read the result of a temperature / humidity measurement.
-    pub fn get_measurement_result(&mut self) -> Result<Measurement, Error<E>> {
+    pub fn get_measurement_result(&mut self) -> Result<Measurement, Error<I2C::Error>> {
         let raw = self.get_raw_measurement_result()?;
         Ok(raw.into())
     }
 
     /// Read the result of a temperature measurement.
-    pub fn get_temperature_measurement_result(&mut self) -> Result<Temperature, Error<E>> {
+    pub fn get_temperature_measurement_result(&mut self) -> Result<Temperature, Error<I2C::Error>> {
         let raw = self.get_raw_partial_measurement_result()?;
         Ok(Temperature::from_raw(raw))
     }
 
     /// Read the result of a humidity measurement.
-    pub fn get_humidity_measurement_result(&mut self) -> Result<Humidity, Error<E>> {
+    pub fn get_humidity_measurement_result(&mut self) -> Result<Humidity, Error<I2C::Error>> {
         let raw = self.get_raw_partial_measurement_result()?;
         Ok(Humidity::from_raw(raw))
     }
 
     /// Read the raw result of a combined temperature / humidity measurement.
-    pub fn get_raw_measurement_result(&mut self) -> Result<RawMeasurement, Error<E>> {
+    pub fn get_raw_measurement_result(&mut self) -> Result<RawMeasurement, Error<I2C::Error>> {
         let mut buf = [0; 6];
         self.read_with_crc(&mut buf)?;
         Ok(RawMeasurement {
@@ -598,7 +608,7 @@ where
     /// Read the raw result of a partial temperature or humidity measurement.
     ///
     /// Return the raw 3-byte buffer (after validating CRC).
-    pub fn get_raw_partial_measurement_result(&mut self) -> Result<u16, Error<E>> {
+    pub fn get_raw_partial_measurement_result(&mut self) -> Result<u16, Error<I2C::Error>> {
         let mut buf = [0; 3];
         self.read_with_crc(&mut buf)?;
         Ok(u16::from_be_bytes([buf[0], buf[1]]))
@@ -606,13 +616,14 @@ where
 }
 
 /// Blocking functions for doing measurements.
-impl<S, I2C, E> ShtCx<S, I2C>
+impl<S, I2C> ShtCx<S, I2C>
 where
     S: ShtSensor + MeasurementDuration,
-    I2C: Read<Error = E> + Write<Error = E>,
+    I2C: I2c<SevenBitAddress>,
+    I2C::Error: Into<Error<I2C::Error>>,
 {
     /// Wait the maximum time needed for the given measurement mode
-    pub fn wait_for_measurement(&mut self, mode: PowerMode, delay: &mut impl DelayUs<u16>) {
+    pub fn wait_for_measurement(&mut self, mode: PowerMode, delay: &mut impl DelayUs) {
         delay.delay_us(S::max_measurement_duration(mode));
     }
 
@@ -622,8 +633,8 @@ where
     pub fn measure(
         &mut self,
         mode: PowerMode,
-        delay: &mut impl DelayUs<u16>,
-    ) -> Result<Measurement, Error<E>> {
+        delay: &mut impl DelayUs,
+    ) -> Result<Measurement, Error<I2C::Error>> {
         self.start_measurement(mode)?;
         self.wait_for_measurement(mode, delay);
         self.get_measurement_result()
@@ -638,8 +649,8 @@ where
     pub fn measure_temperature(
         &mut self,
         mode: PowerMode,
-        delay: &mut impl DelayUs<u16>,
-    ) -> Result<Temperature, Error<E>> {
+        delay: &mut impl DelayUs,
+    ) -> Result<Temperature, Error<I2C::Error>> {
         self.start_temperature_measurement(mode)?;
         self.wait_for_measurement(mode, delay);
         self.get_temperature_measurement_result()
@@ -654,8 +665,8 @@ where
     pub fn measure_humidity(
         &mut self,
         mode: PowerMode,
-        delay: &mut impl DelayUs<u16>,
-    ) -> Result<Humidity, Error<E>> {
+        delay: &mut impl DelayUs,
+    ) -> Result<Humidity, Error<I2C::Error>> {
         self.start_humidity_measurement(mode)?;
         self.wait_for_measurement(mode, delay);
         self.get_humidity_measurement_result()
@@ -668,7 +679,7 @@ where
 /// but not the SHTC1).
 pub trait LowPower<E> {
     /// Time the sensor needs until it is ready after a wakeup call.
-    const WAKEUP_TIME_US: u16;
+    const WAKEUP_TIME_US: u32;
 
     /// Set sensor to sleep mode.
     ///
@@ -681,27 +692,28 @@ pub trait LowPower<E> {
     fn start_wakeup(&mut self) -> Result<(), Error<E>>;
 
     /// Wake up sensor from [sleep mode](#method.sleep) and wait until it is ready.
-    fn wakeup(&mut self, delay: &mut impl DelayUs<u16>) -> Result<(), Error<E>>;
+    fn wakeup(&mut self, delay: &mut impl DelayUs) -> Result<(), Error<E>>;
 }
 
 macro_rules! impl_low_power {
     ($target:ty) => {
-        impl<I2C, E> LowPower<E> for ShtCx<$target, I2C>
+        impl<I2C> LowPower<I2C::Error> for ShtCx<$target, I2C>
         where
-            I2C: Read<Error = E> + Write<Error = E>,
+            I2C: I2c<SevenBitAddress>,
+            I2C::Error: Into<Error<I2C::Error>>,
         {
             // Table 5: 180-240 µs
-            const WAKEUP_TIME_US: u16 = 240;
+            const WAKEUP_TIME_US: u32 = 240_u32;
 
-            fn sleep(&mut self) -> Result<(), Error<E>> {
+            fn sleep(&mut self) -> Result<(), Error<I2C::Error>> {
                 self.send_command(Command::Sleep)
             }
 
-            fn start_wakeup(&mut self) -> Result<(), Error<E>> {
+            fn start_wakeup(&mut self) -> Result<(), Error<I2C::Error>> {
                 self.send_command(Command::WakeUp)
             }
 
-            fn wakeup(&mut self, delay: &mut impl DelayUs<u16>) -> Result<(), Error<E>> {
+            fn wakeup(&mut self, delay: &mut impl DelayUs) -> Result<(), Error<I2C::Error>> {
                 self.start_wakeup()?;
                 delay.delay_us(Self::WAKEUP_TIME_US);
                 Ok(())
