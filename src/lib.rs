@@ -194,7 +194,7 @@ mod types;
 
 use core::marker::PhantomData;
 
-use embedded_hal::delay::DelayUs;
+use embedded_hal::delay::DelayNs;
 use embedded_hal::i2c::{I2c, SevenBitAddress};
 
 use crc::crc8;
@@ -530,10 +530,10 @@ where
     /// in its idle state (i.e. if no measurement is in progress) the soft
     /// reset command can be sent. This triggers the sensor to reset all
     /// internal state machines and reload calibration data from the memory.
-    pub fn reset(&mut self, delay: &mut impl DelayUs) -> Result<(), Error<I2C::Error>> {
+    pub fn reset(&mut self, delay: &mut impl DelayNs) -> Result<(), Error<I2C::Error>> {
         self.send_command(Command::SoftwareReset)?;
         // Table 5: 180-240 µs
-        delay.delay_us(240);
+        delay.delay_us(240_000);
         Ok(())
     }
 }
@@ -623,7 +623,7 @@ where
     I2C::Error: Into<Error<I2C::Error>>,
 {
     /// Wait the maximum time needed for the given measurement mode
-    pub fn wait_for_measurement(&mut self, mode: PowerMode, delay: &mut impl DelayUs) {
+    pub fn wait_for_measurement(&mut self, mode: PowerMode, delay: &mut impl DelayNs) {
         delay.delay_us(S::max_measurement_duration(mode));
     }
 
@@ -633,7 +633,7 @@ where
     pub fn measure(
         &mut self,
         mode: PowerMode,
-        delay: &mut impl DelayUs,
+        delay: &mut impl DelayNs,
     ) -> Result<Measurement, Error<I2C::Error>> {
         self.start_measurement(mode)?;
         self.wait_for_measurement(mode, delay);
@@ -649,7 +649,7 @@ where
     pub fn measure_temperature(
         &mut self,
         mode: PowerMode,
-        delay: &mut impl DelayUs,
+        delay: &mut impl DelayNs,
     ) -> Result<Temperature, Error<I2C::Error>> {
         self.start_temperature_measurement(mode)?;
         self.wait_for_measurement(mode, delay);
@@ -665,7 +665,7 @@ where
     pub fn measure_humidity(
         &mut self,
         mode: PowerMode,
-        delay: &mut impl DelayUs,
+        delay: &mut impl DelayNs,
     ) -> Result<Humidity, Error<I2C::Error>> {
         self.start_humidity_measurement(mode)?;
         self.wait_for_measurement(mode, delay);
@@ -692,7 +692,7 @@ pub trait LowPower<E> {
     fn start_wakeup(&mut self) -> Result<(), Error<E>>;
 
     /// Wake up sensor from [sleep mode](#method.sleep) and wait until it is ready.
-    fn wakeup(&mut self, delay: &mut impl DelayUs) -> Result<(), Error<E>>;
+    fn wakeup(&mut self, delay: &mut impl DelayNs) -> Result<(), Error<E>>;
 }
 
 macro_rules! impl_low_power {
@@ -713,9 +713,9 @@ macro_rules! impl_low_power {
                 self.send_command(Command::WakeUp)
             }
 
-            fn wakeup(&mut self, delay: &mut impl DelayUs) -> Result<(), Error<I2C::Error>> {
+            fn wakeup(&mut self, delay: &mut impl DelayNs) -> Result<(), Error<I2C::Error>> {
                 self.start_wakeup()?;
-                delay.delay_us(Self::WAKEUP_TIME_US);
+                delay.delay_ns(Self::WAKEUP_TIME_US * 1_000);
                 Ok(())
             }
         }
