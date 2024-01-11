@@ -719,9 +719,11 @@ mod tests {
 
     use std::io::ErrorKind;
 
-    use embedded_hal_mock::delay::MockNoop as NoopDelay;
-    use embedded_hal_mock::i2c::{Mock as I2cMock, Transaction};
-    use embedded_hal_mock::MockError;
+    use embedded_hal_mock::eh0::{
+        delay::NoopDelay,
+        i2c::{Mock as I2cMock, Transaction},
+        MockError,
+    };
 
     const SHT_ADDR: u8 = 0x70;
 
@@ -810,6 +812,7 @@ mod tests {
             let mock = I2cMock::new(&[]);
             let sht = shtc1(mock);
             assert_eq!(sht.address, 0x70);
+            sht.destroy().done();
         }
 
         #[test]
@@ -817,6 +820,7 @@ mod tests {
             let mock = I2cMock::new(&[]);
             let sht = shtc3(mock);
             assert_eq!(sht.address, 0x70);
+            sht.destroy().done();
         }
 
         #[test]
@@ -824,6 +828,7 @@ mod tests {
             let mock = I2cMock::new(&[]);
             let sht = shtw2(mock, 0x42);
             assert_eq!(sht.address, 0x42);
+            sht.destroy().done();
         }
 
         #[test]
@@ -831,6 +836,7 @@ mod tests {
             let mock = I2cMock::new(&[]);
             let sht = generic(mock, 0x23);
             assert_eq!(sht.address, 0x23);
+            sht.destroy().done();
         }
     }
 
@@ -1034,6 +1040,9 @@ mod tests {
             assert_eq!(max_measurement_duration(&c1, PowerMode::LowPower), 940);
             assert_eq!(max_measurement_duration(&c3, PowerMode::NormalMode), 12100);
             assert_eq!(max_measurement_duration(&c3, PowerMode::LowPower), 800);
+
+            c1.destroy().done();
+            c3.destroy().done();
         }
     }
 }
