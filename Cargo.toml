@@ -26,7 +26,7 @@ default = []
 embedded-hal = "0.2"
 
 [dev-dependencies]
-embedded-hal-mock = "0.9.0"
+embedded-hal-mock = { version = "0.10.0", features = ["eh0"] }
 linux-embedded-hal = "0.3"
 termion = "1.5"
 tui = "0.8"
