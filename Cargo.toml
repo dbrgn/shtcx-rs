@@ -37,8 +37,8 @@ embedded-hal = "1.0"
 [dev-dependencies]
 embedded-hal-mock = { version = "0.10.0", features = ["eh1"], default-features = false }
 linux-embedded-hal = "0.4"
-termion = "1.5"
-tui = "0.8"
+termion = "4.0"
+tui = "0.19"
 
 [profile.release]
 lto = true
