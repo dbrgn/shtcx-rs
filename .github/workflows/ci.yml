@@ -1,14 +1,7 @@
-on:
-  push:
-  schedule:
-    - cron: '30 3 * * 2'
-
 name: CI
-
+on: [push]
 jobs:
-
   build_and_test:
-    name: Build and test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
