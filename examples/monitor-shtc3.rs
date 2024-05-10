@@ -12,10 +12,12 @@ use shtcx::{self, PowerMode};
 use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::{IntoRawMode, RawTerminal};
-use tui::backend::{Backend, TermionBackend};
+use tui::backend::{Backend, CrosstermBackend};
 use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::style::{Color, Style};
-use tui::widgets::{Axis, Block, Borders, Chart, Dataset, Marker, Widget};
+use tui::symbols::Marker;
+use tui::text::Span;
+use tui::widgets::{Axis, Block, Borders, Chart, Dataset};
 use tui::{Frame, Terminal};
 
 const SENSOR_REFRESH_DELAY: Duration = Duration::from_millis(50);
@@ -61,7 +63,7 @@ fn main() -> Result<(), io::Error> {
 
     // Initialize terminal app
     let stdout = io::stdout().into_raw_mode()?;
-    let backend = TermionBackend::new(stdout);
+    let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
     // Prepare terminal
@@ -131,39 +133,38 @@ fn show_chart<B: Backend>(
     frame: &mut Frame<B>,
     area: Rect,
 ) {
-    Chart::default()
+    let dataset = vec![
+        Dataset::default()
+            .name("Low power mode")
+            .marker(Marker::Braille)
+            .style(Style::default().fg(color_lowpwr))
+            .data(&data_lowpwr),
+        Dataset::default()
+            .name("Normal mode")
+            .marker(Marker::Dot)
+            .style(Style::default().fg(color_normal))
+            .data(data_normal),
+    ];
+    let axis_style = Style::default().fg(Color::Red);
+    let chart = Chart::new(dataset)
         .block(Block::default().title(title).borders(Borders::ALL))
         .x_axis(
-            Axis::<&str>::default()
-                .title("X Axis")
-                .title_style(Style::default().fg(Color::Red))
+            Axis::default()
+                .title(Span::styled("X Axis", axis_style))
                 .style(Style::default().fg(Color::White))
                 .bounds([0.0, DATA_CAPACITY as f64]),
         )
         .y_axis(
-            Axis::<&str>::default()
-                .title("Y Axis")
-                .title_style(Style::default().fg(Color::Red))
+            Axis::default()
+                .title(Span::styled("Y Axis", axis_style))
                 .style(Style::default().fg(Color::White))
-                .bounds([0.0, max.0])
-                .labels(&["0", max.1]),
-        )
-        .datasets(&[
-            Dataset::default()
-                .name("Low power mode")
-                .marker(Marker::Braille)
-                .style(Style::default().fg(color_lowpwr))
-                .data(&data_lowpwr),
-            Dataset::default()
-                .name("Normal mode")
-                .marker(Marker::Dot)
-                .style(Style::default().fg(color_normal))
-                .data(data_normal),
-        ])
-        .render(frame, area);
+                .bounds([0.0, max.0]),
+            // .labels(&["0", max.1]),
+        );
+    frame.render_widget(chart, area);
 }
 
-fn render(terminal: &mut Terminal<TermionBackend<RawTerminal<Stdout>>>, data: &Data) {
+fn render(terminal: &mut Terminal<CrosstermBackend<RawTerminal<Stdout>>>, data: &Data) {
     terminal
         .draw(|mut f| {
             let chunks = Layout::default()
