@@ -1,24 +1,33 @@
 //! Monitor an SHTC3 sensor on Linux in the terminal.
 
-use std::collections::VecDeque;
-use std::io::{self, Stdout};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{mpsc::channel, Arc};
-use std::thread;
-use std::time::Duration;
+use std::{
+    collections::VecDeque,
+    io::{self, Stdout},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc::channel,
+        Arc,
+    },
+    thread,
+    time::Duration,
+};
 
 use linux_embedded_hal::{Delay, I2cdev};
 use shtcx::{self, PowerMode};
-use termion::event::Key;
-use termion::input::TermRead;
-use termion::raw::{IntoRawMode, RawTerminal};
-use tui::backend::{Backend, CrosstermBackend};
-use tui::layout::{Constraint, Direction, Layout, Rect};
-use tui::style::{Color, Style};
-use tui::symbols::Marker;
-use tui::text::Span;
-use tui::widgets::{Axis, Block, Borders, Chart, Dataset};
-use tui::{Frame, Terminal};
+use termion::{
+    event::Key,
+    input::TermRead,
+    raw::{IntoRawMode, RawTerminal},
+};
+use tui::{
+    backend::{Backend, CrosstermBackend},
+    layout::{Constraint, Direction, Layout, Rect},
+    style::{Color, Style},
+    symbols::Marker,
+    text::Span,
+    widgets::{Axis, Block, Borders, Chart, Dataset},
+    Frame, Terminal,
+};
 
 const SENSOR_REFRESH_DELAY: Duration = Duration::from_millis(50);
 const UI_REFRESH_DELAY: Duration = Duration::from_millis(25);
