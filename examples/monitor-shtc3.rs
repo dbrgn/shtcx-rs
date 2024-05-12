@@ -40,8 +40,8 @@ fn main() -> Result<(), io::Error> {
 
     // Handle Ctrl-c
     thread::spawn(move || {
-        for key in io::stdin().keys() {
-            if let Ok(Key::Ctrl('c')) = key {
+        for key in io::stdin().keys().flatten() {
+            if Key::Ctrl('c') == key {
                 running.store(false, Ordering::SeqCst);
                 break;
             }
