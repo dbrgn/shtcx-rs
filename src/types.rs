@@ -98,7 +98,7 @@ mod tests {
         let test_data = [
             (0x0000, -45000),
             // Datasheet setion 5.11 "Conversion of Sensor Output"
-            (((0b0110_0100 as u16) << 8) | 0b1000_1011, 23730),
+            ((0b0110_0100_u16 << 8) | 0b1000_1011, 23730),
         ];
         for td in &test_data {
             assert_eq!(convert_temperature(td.0), td.1);
@@ -111,7 +111,7 @@ mod tests {
         let test_data = [
             (0x0000, 0),
             // Datasheet setion 5.11 "Conversion of Sensor Output"
-            (((0b1010_0001 as u16) << 8) | 0b0011_0011, 62968),
+            ((0b1010_0001_u16 << 8) | 0b0011_0011, 62968),
         ];
         for td in &test_data {
             assert_eq!(convert_humidity(td.0), td.1);
@@ -122,8 +122,8 @@ mod tests {
     #[test]
     fn measurement_conversion() {
         // Datasheet setion 5.11 "Conversion of Sensor Output"
-        let temperature = convert_temperature(((0b0110_0100 as u16) << 8) | 0b1000_1011);
-        let humidity = convert_humidity(((0b1010_0001 as u16) << 8) | 0b0011_0011);
+        let temperature = convert_temperature((0b0110_0100_u16 << 8) | 0b1000_1011);
+        let humidity = convert_humidity((0b1010_0001_u16 << 8) | 0b0011_0011);
         assert_eq!(temperature, 23730);
         assert_eq!(humidity, 62968);
     }
@@ -146,8 +146,8 @@ mod tests {
     fn measurement_from_into() {
         // Datasheet setion 5.11 "Conversion of Sensor Output"
         let raw = RawMeasurement {
-            temperature: ((0b0110_0100 as u16) << 8) | 0b1000_1011,
-            humidity: ((0b1010_0001 as u16) << 8) | 0b0011_0011,
+            temperature: (0b0110_0100_u16 << 8) | 0b1000_1011,
+            humidity: (0b1010_0001_u16 << 8) | 0b0011_0011,
         };
 
         // std::convert::From
