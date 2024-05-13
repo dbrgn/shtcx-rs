@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 
+## 1.0.0 - 2024-05-10
+
+- [change] Update to embedded-hal 1.0 (#36)
+
+
 ## 0.11.0 - 2022-12-29
 
 - [add] Allow reading raw measurement data (#28)
