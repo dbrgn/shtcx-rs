@@ -40,8 +40,8 @@ fn main() -> Result<(), io::Error> {
 
     // Handle Ctrl-c
     thread::spawn(move || {
-        for key in io::stdin().keys() {
-            if let Ok(Key::Ctrl('c')) = key {
+        for key in io::stdin().keys().flatten() {
+            if Key::Ctrl('c') == key {
                 running.store(false, Ordering::SeqCst);
                 break;
             }
@@ -147,7 +147,7 @@ fn show_chart<B: Backend>(
             .name("Low power mode")
             .marker(Marker::Braille)
             .style(Style::default().fg(color_lowpwr))
-            .data(&data_lowpwr),
+            .data(data_lowpwr),
         Dataset::default()
             .name("Normal mode")
             .marker(Marker::Dot)
@@ -175,7 +175,7 @@ fn show_chart<B: Backend>(
 
 fn render(terminal: &mut Terminal<CrosstermBackend<RawTerminal<Stdout>>>, data: &Data) {
     terminal
-        .draw(|mut f| {
+        .draw(|f| {
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .margin(1)
@@ -216,7 +216,7 @@ fn render(terminal: &mut Terminal<CrosstermBackend<RawTerminal<Stdout>>>, data: 
                 Color::Red,
                 temp_lowpwr.as_slice(),
                 Color::Magenta,
-                &mut f,
+                f,
                 chunks[0],
             );
             show_chart(
@@ -226,7 +226,7 @@ fn render(terminal: &mut Terminal<CrosstermBackend<RawTerminal<Stdout>>>, data: 
                 Color::Blue,
                 humi_lowpwr.as_slice(),
                 Color::Cyan,
-                &mut f,
+                f,
                 chunks[1],
             );
         })
